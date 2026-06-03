@@ -1,0 +1,300 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 20 14% 4%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 20 14% 4%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 14% 4%;
+
+    --primary: 20 14% 4%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 30 10% 96%;
+    --secondary-foreground: 20 14% 4%;
+
+    --muted: 30 8% 94%;
+    --muted-foreground: 20 6% 46%;
+
+    --accent: 28 80% 52%;
+    --accent-foreground: 0 0% 100%;
+
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 20 14% 4%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 30 8% 88%;
+    --input: 30 8% 90%;
+    --ring: 20 14% 4%;
+
+    --radius: 0.5rem;
+
+    /* Brand system */
+    --brand-50: 30 100% 97%;
+    --brand-100: 30 90% 93%;
+    --brand-200: 30 85% 85%;
+    --brand-300: 28 82% 72%;
+    --brand-400: 28 80% 60%;
+    --brand-500: 28 80% 52%;
+    --brand-600: 25 78% 44%;
+    --brand-700: 22 74% 36%;
+    --brand-800: 20 68% 28%;
+    --brand-900: 18 60% 20%;
+
+    /* Chart */
+    --chart-1: 20 14% 4%;
+    --chart-2: 28 80% 52%;
+    --chart-3: 142 71% 45%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 0 84% 60%;
+  }
+
+  .dark {
+    --background: 20 14% 4%;
+    --foreground: 30 10% 96%;
+
+    --card: 20 12% 7%;
+    --card-foreground: 30 10% 96%;
+
+    --popover: 20 12% 7%;
+    --popover-foreground: 30 10% 96%;
+
+    --primary: 30 10% 96%;
+    --primary-foreground: 20 14% 4%;
+
+    --secondary: 20 10% 14%;
+    --secondary-foreground: 30 10% 96%;
+
+    --muted: 20 10% 14%;
+    --muted-foreground: 30 6% 60%;
+
+    --accent: 28 80% 52%;
+    --accent-foreground: 0 0% 100%;
+
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 20 14% 4%;
+
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 20 10% 18%;
+    --input: 20 10% 18%;
+    --ring: 30 10% 96%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply tracking-tight;
+    line-height: 1.2;
+  }
+
+  p {
+    line-height: 1.6;
+  }
+}
+
+@layer components {
+  .container-main {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .section-padding {
+    @apply py-16 md:py-24;
+  }
+
+  .section-title {
+    @apply text-3xl md:text-4xl font-bold tracking-tight text-foreground;
+  }
+
+  .section-subtitle {
+    @apply text-muted-foreground text-lg mt-3 max-w-2xl;
+  }
+
+  .btn-primary {
+    @apply bg-foreground text-background px-6 py-3 font-semibold tracking-wide hover:bg-foreground/90 transition-all duration-200 active:scale-95;
+  }
+
+  .btn-outline {
+    @apply border-2 border-foreground text-foreground px-6 py-3 font-semibold tracking-wide hover:bg-foreground hover:text-background transition-all duration-200 active:scale-95;
+  }
+
+  .product-card-hover {
+    @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
+  }
+
+  .badge-new {
+    @apply bg-emerald-500 text-white text-xs font-bold px-2 py-0.5 rounded-full tracking-wide uppercase;
+  }
+
+  .badge-sale {
+    @apply bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full tracking-wide uppercase;
+  }
+
+  .badge-limited {
+    @apply bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full tracking-wide uppercase;
+  }
+
+  .badge-out-of-stock {
+    @apply bg-gray-500 text-white text-xs font-bold px-2 py-0.5 rounded-full tracking-wide uppercase;
+  }
+
+  .overlay-gradient {
+    @apply absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent;
+  }
+
+  .link-hover {
+    @apply hover:text-accent transition-colors duration-150;
+  }
+
+  .input-field {
+    @apply w-full border border-input bg-background px-4 py-2.5 text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .animation-delay-100 {
+    animation-delay: 100ms;
+  }
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+  .animation-delay-300 {
+    animation-delay: 300ms;
+  }
+  .animation-delay-400 {
+    animation-delay: 400ms;
+  }
+
+  .gradient-brand {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--brand-500)),
+      hsl(var(--brand-700))
+    );
+  }
+
+  .aspect-product {
+    aspect-ratio: 3 / 4;
+  }
+
+  .aspect-banner {
+    aspect-ratio: 16 / 6;
+  }
+}
+
+/* Animations */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 25%,
+    hsl(var(--border)) 50%,
+    hsl(var(--muted)) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s ease-out forwards;
+}
+
+/* Custom scrollbar for desktop */
+@media (min-width: 1024px) {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.4);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.6);
+  }
+}
