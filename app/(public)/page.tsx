@@ -6,9 +6,9 @@ import { ProductGridSection } from "@/components/home/product-grid-section";
 import { CollectionBanners } from "@/components/home/collection-banners";
 import { FlashSaleSection } from "@/components/home/flash-sale-section";
 import { PromoCallout } from "@/components/home/promo-callout";
-import { TestimonialsSection } from "@/components/home/testimonials-section";
+import { TestimonialsSection } from "@/components/home/tastimonials-section";
 import { NewsletterSection } from "@/components/home/newsletter-section";
-import { getFeaturedCollections } from "@/lib/catalogue";
+import { getFeaturedCollections } from "@/lib/catalouge";
 import {
   getNewArrivals,
   getBestSellers,
