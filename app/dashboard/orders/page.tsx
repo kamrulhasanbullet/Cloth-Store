@@ -1,36 +1,11 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { cn, formatPrice, formatDate } from "@/lib/utils";
-import type { OrderStatus } from "@/lib/types";
-
-const DEMO_ORDERS = [
-  {
-    id: "1",
-    order_number: "ORD-240103-A1B2",
-    status: "delivered" as OrderStatus,
-    total: 4870,
-    created_at: "2025-01-03T10:00:00Z",
-    items: 3,
-    payment_method: "cod",
-  },
-  {
-    id: "2",
-    order_number: "ORD-240215-C3D4",
-    status: "shipped" as OrderStatus,
-    total: 2980,
-    created_at: "2025-02-15T14:30:00Z",
-    items: 2,
-    payment_method: "sslcommerz",
-  },
-  {
-    id: "3",
-    order_number: "ORD-240320-E5F6",
-    status: "processing" as OrderStatus,
-    total: 1890,
-    created_at: "2025-03-20T09:15:00Z",
-    items: 1,
-    payment_method: "cod",
-  },
-];
+import { getUserOrders } from "@/app/actions/orders";
+import { Loader2 } from "lucide-react";
+import type { OrderStatus, Order } from "@/lib/types";
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string }> = {
   pending: { label: "Pending", color: "bg-amber-100 text-amber-700" },
@@ -43,6 +18,23 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string }> = {
 };
 
 export default function OrdersPage() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getUserOrders()
+      .then(({ orders }) => setOrders(orders))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="mb-6">
@@ -52,7 +44,7 @@ export default function OrdersPage() {
         </p>
       </div>
 
-      {DEMO_ORDERS.length === 0 ? (
+      {orders.length === 0 ? (
         <div className="bg-background border border-border rounded-xl p-12 text-center">
           <p className="text-muted-foreground">
             You haven&apos;t placed any orders yet.
@@ -66,7 +58,7 @@ export default function OrdersPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {DEMO_ORDERS.map((order) => (
+          {orders.map((order) => (
             <div
               key={order.id}
               className="bg-background border border-border rounded-xl p-5 hover:shadow-card transition-shadow"
@@ -80,15 +72,17 @@ export default function OrdersPage() {
                     <span
                       className={cn(
                         "text-xs font-semibold px-2.5 py-0.5 rounded-full",
-                        STATUS_CONFIG[order.status].color,
+                        STATUS_CONFIG[order.status as OrderStatus]?.color ??
+                          "bg-gray-100 text-gray-600",
                       )}
                     >
-                      {STATUS_CONFIG[order.status].label}
+                      {STATUS_CONFIG[order.status as OrderStatus]?.label ??
+                        order.status}
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {formatDate(order.created_at)} • {order.items} item
-                    {order.items > 1 ? "s" : ""} •{" "}
+                    {formatDate(order.created_at)} • {order.items?.length ?? 0}{" "}
+                    item{(order.items?.length ?? 0) > 1 ? "s" : ""} •{" "}
                     {order.payment_method.toUpperCase()}
                   </p>
                 </div>
@@ -96,12 +90,6 @@ export default function OrdersPage() {
                   <p className="text-base font-bold text-foreground">
                     {formatPrice(order.total)}
                   </p>
-                  <Link
-                    href={`/dashboard/orders/${order.id}`}
-                    className="text-xs font-semibold text-accent hover:underline"
-                  >
-                    View Details
-                  </Link>
                 </div>
               </div>
             </div>
