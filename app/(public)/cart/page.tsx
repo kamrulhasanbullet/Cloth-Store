@@ -1,63 +1,104 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Trash2, ShoppingBag, ArrowRight, Tag, X } from "lucide-react";
+import { Trash2, ShoppingBag, ArrowRight, Tag, X, Loader2 } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
+import {
+  getCartWithItems,
+  updateCartItemQuantity,
+  removeCartItem,
+  applyCoupon,
+  removeCoupon,
+} from "@/app/actions/cart";
 
-// Placeholder cart state — in production this would come from a cart context / Supabase
-const DEMO_ITEMS = [
-  {
-    id: "1",
-    product_name: "Premium Oxford Shirt",
-    variant_sku: "SHT-M-WHITE",
-    size: "M",
-    color: "White",
-    image_url:
-      "https://images.pexels.com/photos/769749/pexels-photo-769749.jpeg?auto=compress&cs=tinysrgb&w=400",
-    unit_price: 1490,
-    quantity: 2,
-  },
-  {
-    id: "2",
-    product_name: "Slim Fit Chino Pants",
-    variant_sku: "PNT-32-NAVY",
-    size: "32",
-    color: "Navy",
-    image_url:
-      "https://images.pexels.com/photos/1598507/pexels-photo-1598507.jpeg?auto=compress&cs=tinysrgb&w=400",
-    unit_price: 1890,
-    quantity: 1,
-  },
-];
+interface CartItemData {
+  id: string;
+  product_name: string;
+  product_slug: string;
+  variant_sku: string;
+  size: string;
+  color: string;
+  image_url: string;
+  unit_price: number;
+  quantity: number;
+  stock_qty: number;
+}
 
 export default function CartPage() {
-  const [items, setItems] = useState(DEMO_ITEMS);
-  const [couponInput, setCouponInput] = useState("");
-  const [couponApplied, setCouponApplied] = useState("");
+  const [items, setItems] = useState<CartItemData[]>([]);
   const [discount, setDiscount] = useState(0);
+  const [couponApplied, setCouponApplied] = useState("");
+  const [couponInput, setCouponInput] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const updateQty = (id: string, qty: number) => {
+  const loadCart = useCallback(async () => {
+    try {
+      const data = await getCartWithItems();
+      setItems(data.items as CartItemData[]);
+      setDiscount(data.discount);
+      setCouponApplied(data.coupon_code);
+    } catch {
+      // User not authenticated — show empty cart
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCart();
+  }, [loadCart]);
+
+  const updateQty = async (id: string, qty: number) => {
     if (qty < 1) return;
+    setActionLoading(id);
+    await updateCartItemQuantity(id, qty);
     setItems((p) => p.map((i) => (i.id === id ? { ...i, quantity: qty } : i)));
+    setActionLoading(null);
   };
 
-  const removeItem = (id: string) =>
+  const handleRemove = async (id: string) => {
+    setActionLoading(id);
+    await removeCartItem(id);
     setItems((p) => p.filter((i) => i.id !== id));
+    setActionLoading(null);
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim()) return;
+    setActionLoading("coupon");
+    const result = await applyCoupon(couponInput);
+    if (result.success && result.data) {
+      setDiscount(result.data.discount);
+      setCouponApplied(couponInput.toUpperCase());
+    }
+    setCouponInput("");
+    setActionLoading(null);
+  };
+
+  const handleRemoveCoupon = async () => {
+    setActionLoading("coupon");
+    await removeCoupon();
+    setDiscount(0);
+    setCouponApplied("");
+    setActionLoading(null);
+  };
 
   const subtotal = items.reduce((s, i) => s + i.unit_price * i.quantity, 0);
   const shipping = subtotal >= 1500 ? 0 : 80;
   const total = subtotal + shipping - discount;
 
-  const applyCoupon = () => {
-    if (couponInput.toUpperCase() === "ARISTO10") {
-      const d = Math.round(subtotal * 0.1);
-      setDiscount(d);
-      setCouponApplied(couponInput.toUpperCase());
-    }
-    setCouponInput("");
-  };
+  if (loading) {
+    return (
+      <div className="section-padding">
+        <div className="container-main flex items-center justify-center py-24">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="section-padding">
@@ -94,11 +135,14 @@ export default function CartPage() {
                   className="flex gap-4 p-4 bg-background border border-border rounded-xl"
                 >
                   <Link
-                    href="/shop"
+                    href={`/products/${item.product_slug}`}
                     className="relative w-20 h-24 rounded-lg overflow-hidden bg-muted shrink-0"
                   >
                     <Image
-                      src={item.image_url}
+                      src={
+                        item.image_url ||
+                        "https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg"
+                      }
                       alt={item.product_name}
                       fill
                       className="object-cover"
@@ -120,17 +164,25 @@ export default function CartPage() {
                         </p>
                       </div>
                       <button
-                        onClick={() => removeItem(item.id)}
-                        className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                        onClick={() => handleRemove(item.id)}
+                        disabled={actionLoading === item.id}
+                        className="text-muted-foreground hover:text-destructive transition-colors p-1 disabled:opacity-50"
                       >
-                        <Trash2 size={15} />
+                        {actionLoading === item.id ? (
+                          <Loader2 size={15} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={15} />
+                        )}
                       </button>
                     </div>
                     <div className="flex items-center justify-between mt-3">
                       <div className="flex items-center border border-border rounded-md overflow-hidden">
                         <button
                           onClick={() => updateQty(item.id, item.quantity - 1)}
-                          className="w-8 h-8 flex items-center justify-center hover:bg-secondary transition-colors text-base"
+                          disabled={
+                            actionLoading === item.id || item.quantity <= 1
+                          }
+                          className="w-8 h-8 flex items-center justify-center hover:bg-secondary transition-colors text-base disabled:opacity-50"
                         >
                           -
                         </button>
@@ -139,7 +191,11 @@ export default function CartPage() {
                         </span>
                         <button
                           onClick={() => updateQty(item.id, item.quantity + 1)}
-                          className="w-8 h-8 flex items-center justify-center hover:bg-secondary transition-colors text-base"
+                          disabled={
+                            actionLoading === item.id ||
+                            item.quantity >= item.stock_qty
+                          }
+                          className="w-8 h-8 flex items-center justify-center hover:bg-secondary transition-colors text-base disabled:opacity-50"
                         >
                           +
                         </button>
@@ -208,10 +264,8 @@ export default function CartPage() {
                         <span>applied</span>
                       </div>
                       <button
-                        onClick={() => {
-                          setCouponApplied("");
-                          setDiscount(0);
-                        }}
+                        onClick={handleRemoveCoupon}
+                        disabled={actionLoading === "coupon"}
                         className="text-emerald-600 hover:text-destructive"
                       >
                         <X size={14} />
@@ -224,13 +278,20 @@ export default function CartPage() {
                         onChange={(e) => setCouponInput(e.target.value)}
                         placeholder="Coupon code"
                         className="input-field text-xs flex-1"
-                        onKeyDown={(e) => e.key === "Enter" && applyCoupon()}
+                        onKeyDown={(e) =>
+                          e.key === "Enter" && handleApplyCoupon()
+                        }
                       />
                       <button
-                        onClick={applyCoupon}
-                        className="px-4 py-2 border border-border text-sm font-semibold rounded-md hover:bg-secondary transition-colors whitespace-nowrap"
+                        onClick={handleApplyCoupon}
+                        disabled={actionLoading === "coupon"}
+                        className="px-4 py-2 border border-border text-sm font-semibold rounded-md hover:bg-secondary transition-colors whitespace-nowrap disabled:opacity-50"
                       >
-                        Apply
+                        {actionLoading === "coupon" ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          "Apply"
+                        )}
                       </button>
                     </div>
                   )}
