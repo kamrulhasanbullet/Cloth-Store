@@ -3,13 +3,12 @@ import { Suspense } from "react";
 import { Search } from "lucide-react";
 import {
   ProductCard,
-  ProductCardSkeleton,
 } from "@/components/product/product-card";
+import { ProductFilters } from "@/lib/types";
+import { getProducts } from "@/lib/products";
 import { ShopFilters } from "@/components/shop/shop-filters";
 import { ShopPagination } from "@/components/shop/shop-pagination";
-import { getCategories } from "@/lib/catalogue";
-import { getProducts } from "@/lib/products";
-import type { ProductFilters } from "@/lib/types";
+import { getCategories } from "@/lib/catalouge";
 
 export const metadata: Metadata = {
   title: "Shop — All Products",

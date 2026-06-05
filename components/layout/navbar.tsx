@@ -11,8 +11,6 @@ import {
   Menu,
   X,
   ChevronDown,
-  Phone,
-  Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 

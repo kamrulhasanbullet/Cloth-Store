@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { Zap } from "lucide-react";
 import { ProductCard } from "@/components/product/product-card";
@@ -36,7 +36,7 @@ interface FlashSaleSectionProps {
 }
 
 export function FlashSaleSection({ products }: FlashSaleSectionProps) {
-  const saleEnd = new Date(Date.now() + 6 * 3600000);
+  const saleEnd = useMemo(() => new Date(Date.now() + 6 * 3600000), []);
   const { hours, minutes, seconds } = useCountdown(saleEnd);
 
   const pad = (n: number) => String(n).padStart(2, "0");
