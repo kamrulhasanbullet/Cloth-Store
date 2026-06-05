@@ -1,85 +1,45 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import {
   ShoppingBag,
   Users,
   DollarSign,
   TrendingUp,
-  ArrowUpRight,
   Package,
-  Clock,
+  Loader2,
 } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
+import {
+  getAdminStats,
+  getAdminRecentOrders,
+  getAdminLowStockProducts,
+} from "@/app/actions/admin";
 
-const STATS = [
-  {
-    label: "Total Revenue",
-    value: "৳4,82,500",
-    change: "+12.5%",
-    icon: DollarSign,
-    color: "bg-emerald-50 text-emerald-600",
-  },
-  {
-    label: "Total Orders",
-    value: "324",
-    change: "+8.2%",
-    icon: ShoppingBag,
-    color: "bg-blue-50 text-blue-600",
-  },
-  {
-    label: "Total Customers",
-    value: "1,847",
-    change: "+15.3%",
-    icon: Users,
-    color: "bg-amber-50 text-amber-600",
-  },
-  {
-    label: "Avg Order Value",
-    value: "৳1,490",
-    change: "+4.1%",
-    icon: TrendingUp,
-    color: "bg-rose-50 text-rose-600",
-  },
-];
+interface StatData {
+  totalOrders: number;
+  totalProducts: number;
+  totalRevenue: number;
+  totalUsers: number;
+}
 
-const RECENT_ORDERS = [
-  {
-    id: "ORD-240603-A1B2",
-    customer: "Rafiq Ahmed",
-    items: 3,
-    total: 4870,
-    status: "processing",
-    time: "10 min ago",
-  },
-  {
-    id: "ORD-240603-C3D4",
-    customer: "Karim Hassan",
-    items: 1,
-    total: 1490,
-    status: "confirmed",
-    time: "32 min ago",
-  },
-  {
-    id: "ORD-240603-E5F6",
-    customer: "Nasir Uddin",
-    items: 2,
-    total: 3380,
-    status: "pending",
-    time: "1 hr ago",
-  },
-  {
-    id: "ORD-240602-G7H8",
-    customer: "Fahim Chowdhury",
-    items: 4,
-    total: 6920,
-    status: "shipped",
-    time: "3 hrs ago",
-  },
-];
+interface RecentOrder {
+  id: string;
+  order_number: string;
+  status: string;
+  total: number;
+  created_at: string;
+  items: { length: number };
+  ship_full_name: string;
+}
 
-const LOW_STOCK = [
-  { name: "Premium Oxford Shirt (M)", stock: 3, sku: "SHT-M-WHITE" },
-  { name: "Slim Chino (32, Navy)", stock: 2, sku: "PNT-32-NAVY" },
-  { name: "Eid Panjabi (XL)", stock: 4, sku: "PNJ-XL-CREAM" },
-];
+interface LowStockProduct {
+  id: string;
+  name: string;
+  slug: string;
+  total_stock: number;
+  images: { url: string; is_primary: boolean }[];
+}
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700",
@@ -91,6 +51,64 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function AdminDashboardPage() {
+  const [stats, setStats] = useState<StatData | null>(null);
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
+  const [lowStock, setLowStock] = useState<LowStockProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      getAdminStats(),
+      getAdminRecentOrders(4),
+      getAdminLowStockProducts(10, 3),
+    ])
+      .then(([s, o, l]) => {
+        if (s) setStats(s);
+        setRecentOrders(o as RecentOrder[]);
+        setLowStock(l as LowStockProduct[]);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const STATS_ITEMS = [
+    {
+      label: "Total Revenue",
+      value: stats ? formatPrice(stats.totalRevenue) : "--",
+      change: "",
+      icon: DollarSign,
+      color: "bg-emerald-50 text-emerald-600",
+    },
+    {
+      label: "Total Orders",
+      value: stats?.totalOrders?.toString() ?? "0",
+      change: "",
+      icon: ShoppingBag,
+      color: "bg-blue-50 text-blue-600",
+    },
+    {
+      label: "Total Customers",
+      value: stats?.totalUsers?.toString() ?? "0",
+      change: "",
+      icon: Users,
+      color: "bg-amber-50 text-amber-600",
+    },
+    {
+      label: "Total Products",
+      value: stats?.totalProducts?.toString() ?? "0",
+      change: "",
+      icon: TrendingUp,
+      color: "bg-rose-50 text-rose-600",
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div>
@@ -104,7 +122,7 @@ export default function AdminDashboardPage() {
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {STATS.map((stat) => (
+        {STATS_ITEMS.map((stat) => (
           <div
             key={stat.label}
             className="bg-background border border-border rounded-xl p-5"
@@ -118,9 +136,6 @@ export default function AdminDashboardPage() {
               >
                 <stat.icon size={18} />
               </div>
-              <span className="text-xs font-semibold text-emerald-600 flex items-center gap-0.5">
-                <ArrowUpRight size={12} /> {stat.change}
-              </span>
             </div>
             <p className="text-2xl font-bold text-foreground">{stat.value}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
@@ -140,42 +155,46 @@ export default function AdminDashboardPage() {
               View All
             </a>
           </div>
-          <div className="divide-y divide-border">
-            {RECENT_ORDERS.map((order) => (
-              <div
-                key={order.id}
-                className="flex items-center gap-4 p-4 hover:bg-secondary/20 transition-colors"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">
-                    {order.id}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {order.customer} • {order.items} items
-                  </p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-sm font-bold text-foreground">
-                    {formatPrice(order.total)}
-                  </p>
-                  <div className="flex items-center gap-2 justify-end mt-0.5">
-                    <span
-                      className={cn(
-                        "text-[10px] font-semibold px-2 py-0.5 rounded-full",
-                        STATUS_COLORS[order.status],
-                      )}
-                    >
-                      {order.status.charAt(0).toUpperCase() +
-                        order.status.slice(1)}
-                    </span>
+          {recentOrders.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground text-sm">
+              No orders yet
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {recentOrders.map((order) => (
+                <div
+                  key={order.id}
+                  className="flex items-center gap-4 p-4 hover:bg-secondary/20 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground truncate">
+                      {order.order_number}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {order.ship_full_name} • {order.items?.length ?? 0} items
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-bold text-foreground">
+                      {formatPrice(order.total)}
+                    </p>
+                    <div className="flex items-center gap-2 justify-end mt-0.5">
+                      <span
+                        className={cn(
+                          "text-[10px] font-semibold px-2 py-0.5 rounded-full",
+                          STATUS_COLORS[order.status] ??
+                            "bg-gray-100 text-gray-600",
+                        )}
+                      >
+                        {order.status.charAt(0).toUpperCase() +
+                          order.status.slice(1)}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <div className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
-                  <Clock size={11} /> {order.time}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Low stock */}
@@ -189,27 +208,29 @@ export default function AdminDashboardPage() {
               Manage
             </a>
           </div>
-          <div className="divide-y divide-border">
-            {LOW_STOCK.map((item) => (
-              <div key={item.sku} className="p-4">
-                <p className="text-sm font-semibold text-foreground line-clamp-1">
-                  {item.name}
-                </p>
-                <p className="text-xs text-muted-foreground">{item.sku}</p>
-                <div className="flex items-center justify-between mt-2">
-                  <div className="flex items-center gap-1">
-                    <Package size={12} className="text-amber-500" />
-                    <span className="text-xs font-semibold text-amber-600">
-                      Only {item.stock} left
-                    </span>
+          {lowStock.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground text-sm">
+              All products well-stocked
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {lowStock.map((item) => (
+                <div key={item.id} className="p-4">
+                  <p className="text-sm font-semibold text-foreground line-clamp-1">
+                    {item.name}
+                  </p>
+                  <div className="flex items-center justify-between mt-2">
+                    <div className="flex items-center gap-1">
+                      <Package size={12} className="text-amber-500" />
+                      <span className="text-xs font-semibold text-amber-600">
+                        Only {item.total_stock} left
+                      </span>
+                    </div>
                   </div>
-                  <button className="text-xs text-accent hover:underline font-semibold">
-                    Restock
-                  </button>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
