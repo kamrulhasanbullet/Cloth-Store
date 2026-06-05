@@ -1,9 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { ChevronRight, CheckCircle, CreditCard, Truck } from "lucide-react";
+import Image from "next/image";
+import {
+  ChevronRight,
+  CheckCircle,
+  CreditCard,
+  Truck,
+  Loader2,
+} from "lucide-react";
 import { cn, formatPrice, BD_DIVISIONS, BD_DISTRICTS } from "@/lib/utils";
+import { getCartWithItems } from "@/app/actions/cart";
+import { createOrder } from "@/app/actions/orders";
 
 type Step = "shipping" | "payment" | "confirm";
 
@@ -13,10 +22,17 @@ const STEPS = [
   { key: "confirm", label: "Confirm" },
 ] as const;
 
-const ORDER_SUMMARY = [
-  { name: "Premium Oxford Shirt (M × 2)", price: 2980 },
-  { name: "Slim Fit Chino Pants (32 × 1)", price: 1890 },
-];
+interface CartItemData {
+  id: string;
+  product_name: string;
+  product_slug: string;
+  variant_sku: string;
+  size: string;
+  color: string;
+  image_url: string;
+  unit_price: number;
+  quantity: number;
+}
 
 export default function CheckoutPage() {
   const [step, setStep] = useState<Step>("shipping");
@@ -24,6 +40,11 @@ export default function CheckoutPage() {
     "cod",
   );
   const [placed, setPlaced] = useState(false);
+  const [orderNumber, setOrderNumber] = useState("");
+  const [placing, setPlacing] = useState(false);
+  const [cartItems, setCartItems] = useState<CartItemData[]>([]);
+  const [cartDiscount, setCartDiscount] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   const [shippingForm, setShippingForm] = useState({
     full_name: "",
@@ -47,9 +68,54 @@ export default function CheckoutPage() {
     ) =>
       setShippingForm((p) => ({ ...p, [k]: e.target.value }));
 
-  const subtotal = ORDER_SUMMARY.reduce((s, i) => s + i.price, 0);
+  const loadCart = useCallback(async () => {
+    try {
+      const data = await getCartWithItems();
+      setCartItems(data.items as CartItemData[]);
+      setCartDiscount(data.discount);
+    } catch {
+      // Not authenticated
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCart();
+  }, [loadCart]);
+
+  const subtotal = cartItems.reduce((s, i) => s + i.unit_price * i.quantity, 0);
   const shipping = subtotal >= 1500 ? 0 : 80;
-  const total = subtotal + shipping;
+  const tax = Math.round(subtotal * 0.05);
+  const total = subtotal + shipping - cartDiscount + tax;
+
+  const handlePlaceOrder = async () => {
+    setPlacing(true);
+    try {
+      const result = await createOrder({
+        ...shippingForm,
+        payment_method: paymentMethod,
+        coupon_code: cartDiscount > 0 ? undefined : undefined,
+        save_address: false,
+      });
+      if (result.success && result.data) {
+        setOrderNumber(result.data.orderNumber);
+        setPlaced(true);
+      }
+    } finally {
+      setPlacing(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="section-padding">
+        <div className="container-main max-w-5xl flex items-center justify-center py-24">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    );
+  }
 
   if (placed) {
     return (
@@ -65,8 +131,8 @@ export default function CheckoutPage() {
             Thank you for your order.
           </p>
           <p className="text-muted-foreground text-sm mb-8">
-            Order <strong>#ORD-240103-DEMO</strong> confirmed. We&apos;ll SMS
-            you with tracking updates.
+            Order <strong>#{orderNumber}</strong> confirmed. We&apos;ll SMS you
+            with tracking updates.
           </p>
           <div className="flex gap-3 justify-center">
             <Link
@@ -423,10 +489,15 @@ export default function CheckoutPage() {
                     Back
                   </button>
                   <button
-                    onClick={() => setPlaced(true)}
-                    className="flex-2 flex-1 py-3 bg-foreground text-background rounded-md text-sm font-bold tracking-wide hover:bg-foreground/90 active:scale-95 transition-all"
+                    onClick={handlePlaceOrder}
+                    disabled={placing}
+                    className="flex-2 flex-1 py-3 bg-foreground text-background rounded-md text-sm font-bold tracking-wide hover:bg-foreground/90 active:scale-95 transition-all disabled:opacity-50"
                   >
-                    Place Order — {formatPrice(total)}
+                    {placing ? (
+                      <Loader2 size={16} className="animate-spin mx-auto" />
+                    ) : (
+                      `Place Order — ${formatPrice(total)}`
+                    )}
                   </button>
                 </div>
               </div>
@@ -439,12 +510,28 @@ export default function CheckoutPage() {
               Order Summary
             </h3>
             <div className="space-y-3 mb-4">
-              {ORDER_SUMMARY.map((i) => (
-                <div key={i.name} className="flex justify-between text-sm">
-                  <span className="text-muted-foreground flex-1 pr-4">
-                    {i.name}
+              {cartItems.map((i) => (
+                <div key={i.id} className="flex gap-3 items-start">
+                  <div className="w-12 h-12 bg-muted rounded-md overflow-hidden shrink-0 relative">
+                    <Image
+                      src={
+                        i.image_url ||
+                        "https://images.pexels.com/photos/996329/pexels-photo-996329.jpeg"
+                      }
+                      alt={i.product_name}
+                      fill
+                      className="object-cover"
+                      sizes="48px"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-muted-foreground truncate">
+                      {i.product_name} ({i.size} x {i.quantity})
+                    </p>
+                  </div>
+                  <span className="text-sm font-semibold whitespace-nowrap">
+                    {formatPrice(i.unit_price * i.quantity)}
                   </span>
-                  <span className="font-semibold">{formatPrice(i.price)}</span>
                 </div>
               ))}
             </div>
@@ -463,6 +550,18 @@ export default function CheckoutPage() {
                 >
                   {shipping === 0 ? "Free" : formatPrice(shipping)}
                 </span>
+              </div>
+              {cartDiscount > 0 && (
+                <div className="flex justify-between text-emerald-600">
+                  <span>Discount</span>
+                  <span className="font-semibold">
+                    -{formatPrice(cartDiscount)}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tax (5%)</span>
+                <span className="font-semibold">{formatPrice(tax)}</span>
               </div>
               <div className="flex justify-between text-base font-bold border-t border-border pt-2">
                 <span>Total</span>
