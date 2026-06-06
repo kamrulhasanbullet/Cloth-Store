@@ -7,7 +7,7 @@ import { getCollectionBySlug } from "@/lib/catalouge";
 import { getProducts } from "@/lib/products";
 import { ProductCard } from "@/components/product/product-card";
 import { ShopPagination } from "@/components/shop/shop-pagination";
-import { SortSelect } from "@/components/shop/sort-select"; // 👈 এই লাইনটা যোগ করুন
+import { SortSelect } from "@/components/shop/sort-select";
 
 interface CollectionPageProps {
   params: { slug: string };
