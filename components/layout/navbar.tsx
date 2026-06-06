@@ -13,6 +13,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/components/auth/auth-provider";
+import Image from "next/image";
 
 const NAV_LINKS = [
   { label: "Shop", href: "/shop" },
@@ -39,6 +41,7 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const pathname = usePathname();
+  const { user, profile } = useAuth();
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 60);
@@ -168,13 +171,38 @@ export function Navbar() {
                   0
                 </span>
               </Link>
-              <Link
-                href="/auth/login"
-                className="hidden sm:flex p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                aria-label="Account"
-              >
-                <User size={20} />
-              </Link>
+
+              {user ? (
+                <Link
+                  href="/dashboard"
+                  className="hidden sm:flex p-1 rounded-full hover:ring-2 hover:ring-accent transition-all"
+                  aria-label="Dashboard"
+                >
+                  {profile?.avatar_url ? (
+                    <Image
+                      src={profile.avatar_url}
+                      alt={profile.full_name || "Profile"}
+                      width={32}
+                      height={32}
+                      className="rounded-full object-cover w-8 h-8"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-xs font-bold">
+                      {(profile?.full_name ||
+                        user.email ||
+                        "U")[0].toUpperCase()}
+                    </div>
+                  )}
+                </Link>
+              ) : (
+                <Link
+                  href="/auth/login"
+                  className="hidden sm:flex p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  aria-label="Account"
+                >
+                  <User size={20} />
+                </Link>
+              )}
 
               {/* Mobile menu toggle */}
               <button
@@ -236,19 +264,32 @@ export function Navbar() {
                   </Link>
                 ),
               )}
+
+              {/* login/dashboard */}
               <div className="pt-4 border-t border-border flex items-center gap-3">
-                <Link
-                  href="/auth/login"
-                  className="flex-1 text-center py-2 text-sm font-semibold border border-border rounded-md hover:bg-secondary transition-colors"
-                >
-                  Sign In
-                </Link>
-                <Link
-                  href="/auth/register"
-                  className="flex-1 text-center py-2 text-sm font-semibold bg-foreground text-background rounded-md hover:bg-foreground/90 transition-colors"
-                >
-                  Register
-                </Link>
+                {user ? (
+                  <Link
+                    href="/dashboard"
+                    className="flex-1 text-center py-2 text-sm font-semibold bg-foreground text-background rounded-md hover:bg-foreground/90 transition-colors"
+                  >
+                    My Account
+                  </Link>
+                ) : (
+                  <>
+                    <Link
+                      href="/auth/login"
+                      className="flex-1 text-center py-2 text-sm font-semibold border border-border rounded-md hover:bg-secondary transition-colors"
+                    >
+                      Sign In
+                    </Link>
+                    <Link
+                      href="/auth/register"
+                      className="flex-1 text-center py-2 text-sm font-semibold bg-foreground text-background rounded-md hover:bg-foreground/90 transition-colors"
+                    >
+                      Register
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </div>
