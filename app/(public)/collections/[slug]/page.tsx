@@ -3,10 +3,11 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { ChevronRight, ArrowRight } from "lucide-react";
+import { getCollectionBySlug } from "@/lib/catalouge";
+import { getProducts } from "@/lib/products";
 import { ProductCard } from "@/components/product/product-card";
 import { ShopPagination } from "@/components/shop/shop-pagination";
-import { getCollectionBySlug, getCategories } from "@/lib/catalogue";
-import { getProducts } from "@/lib/products";
+import { SortSelect } from "@/components/shop/sort-select"; // 👈 এই লাইনটা যোগ করুন
 
 interface CollectionPageProps {
   params: { slug: string };
@@ -116,22 +117,7 @@ export default async function CollectionPage({
             </p>
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Sort by:</span>
-              <select
-                defaultValue={sort}
-                className="text-sm border border-border rounded-md px-3 py-1.5 bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                onChange={(e) => {
-                  const url = new URL(window.location.href);
-                  url.searchParams.set("sort", e.target.value);
-                  url.searchParams.set("page", "1");
-                  window.location.href = url.toString();
-                }}
-              >
-                <option value="newest">Newest</option>
-                <option value="popular">Most Popular</option>
-                <option value="price_asc">Price: Low to High</option>
-                <option value="price_desc">Price: High to Low</option>
-                <option value="rating">Top Rated</option>
-              </select>
+              <SortSelect defaultValue={sort} />
             </div>
           </div>
 

@@ -124,14 +124,16 @@ export function ProductCard({
             >
               <Heart size={16} className={cn(isWishlisted && "fill-current")} />
             </button>
-            <Link
-              href={`/products/${product.slug}`}
-              onClick={(e) => e.stopPropagation()}
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = `/products/${product.slug}`;
+              }}
               className="w-9 h-9 bg-background rounded-full flex items-center justify-center shadow-md text-muted-foreground hover:text-foreground transition-colors"
               aria-label="Quick view"
             >
               <Eye size={16} />
-            </Link>
+            </button>
           </div>
 
           {/* Add to cart — mobile friendly */}
