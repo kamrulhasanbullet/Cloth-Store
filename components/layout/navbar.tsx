@@ -41,7 +41,7 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const pathname = usePathname();
-  const { user, profile } = useAuth();
+  const { user, profile, signOut } = useAuth();
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 60);
@@ -173,27 +173,77 @@ export function Navbar() {
               </Link>
 
               {user ? (
-                <Link
-                  href="/dashboard"
-                  className="hidden sm:flex p-1 rounded-full hover:ring-2 hover:ring-accent transition-all"
-                  aria-label="Dashboard"
-                >
-                  {profile?.avatar_url ? (
-                    <Image
-                      src={profile.avatar_url}
-                      alt={profile.full_name || "Profile"}
-                      width={32}
-                      height={32}
-                      className="rounded-full object-cover w-8 h-8"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-xs font-bold">
-                      {(profile?.full_name ||
-                        user.email ||
-                        "U")[0].toUpperCase()}
+                <div className="relative hidden sm:block">
+                  <button
+                    onClick={() =>
+                      setOpenDropdown(openDropdown === "user" ? null : "user")
+                    }
+                    className="p-1 rounded-full hover:ring-2 hover:ring-accent transition-all"
+                    aria-label="Dashboard"
+                  >
+                    {profile?.avatar_url ? (
+                      <Image
+                        src={profile.avatar_url}
+                        alt={profile.full_name || "Profile"}
+                        width={32}
+                        height={32}
+                        className="rounded-full object-cover w-8 h-8"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-xs font-bold">
+                        {(profile?.full_name ||
+                          user.email ||
+                          "U")[0].toUpperCase()}
+                      </div>
+                    )}
+                  </button>
+
+                  {/* User Dropdown */}
+                  {openDropdown === "user" && (
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-background border border-border rounded-xl shadow-dropdown py-2 z-50">
+                      <div className="px-4 py-2 border-b border-border mb-1">
+                        <p className="text-sm font-semibold text-foreground truncate">
+                          {profile?.full_name || "My Account"}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {user.email}
+                        </p>
+                      </div>
+                      <Link
+                        href="/dashboard"
+                        className="block px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                        onClick={() => setOpenDropdown(null)}
+                      >
+                        Dashboard
+                      </Link>
+                      <Link
+                        href="/dashboard/orders"
+                        className="block px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                        onClick={() => setOpenDropdown(null)}
+                      >
+                        My Orders
+                      </Link>
+                      <Link
+                        href="/dashboard/wishlist"
+                        className="block px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                        onClick={() => setOpenDropdown(null)}
+                      >
+                        Wishlist
+                      </Link>
+                      <div className="border-t border-border mt-1 pt-1">
+                        <button
+                          onClick={() => {
+                            signOut();
+                            setOpenDropdown(null);
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                        >
+                          Sign Out
+                        </button>
+                      </div>
                     </div>
                   )}
-                </Link>
+                </div>
               ) : (
                 <Link
                   href="/auth/login"
@@ -264,16 +314,23 @@ export function Navbar() {
                   </Link>
                 ),
               )}
-
               {/* login/dashboard */}
               <div className="pt-4 border-t border-border flex items-center gap-3">
                 {user ? (
-                  <Link
-                    href="/dashboard"
-                    className="flex-1 text-center py-2 text-sm font-semibold bg-foreground text-background rounded-md hover:bg-foreground/90 transition-colors"
-                  >
-                    My Account
-                  </Link>
+                  <>
+                    <Link
+                      href="/dashboard"
+                      className="flex-1 text-center py-2 text-sm font-semibold bg-foreground text-background rounded-md hover:bg-foreground/90 transition-colors"
+                    >
+                      My Account
+                    </Link>
+                    <button
+                      onClick={signOut}
+                      className="flex-1 text-center py-2 text-sm font-semibold text-red-500 border border-red-200 rounded-md hover:bg-red-50 transition-colors"
+                    >
+                      Sign Out
+                    </button>
+                  </>
                 ) : (
                   <>
                     <Link
