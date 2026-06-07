@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
+import { requireAuth } from "@/lib/admin-guard";
 import { User, ShoppingBag, Heart, MapPin, Star, Bell } from "lucide-react";
 
 const DASHBOARD_NAV = [
@@ -12,11 +13,13 @@ const DASHBOARD_NAV = [
   { href: "/dashboard/notifications", label: "Notifications", icon: Bell },
 ];
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  await requireAuth();
+
   return (
     <>
       <Navbar />
