@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { requireAdminUser } from "@/lib/admin-guard";
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -26,11 +27,13 @@ const ADMIN_NAV = [
   { href: "/admin/analytics", label: "Analytics", icon: BarChart2 },
 ];
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  await requireAdminUser();
+
   return (
     <div className="min-h-screen flex bg-secondary/20">
       {/* Sidebar */}
