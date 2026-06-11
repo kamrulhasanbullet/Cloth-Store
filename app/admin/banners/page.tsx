@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { Plus, Edit, Trash2, Loader2 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import {
@@ -232,10 +233,12 @@ export default function AdminBannersPage() {
             >
               <div className="flex items-start gap-4 p-4">
                 {banner.image_url && (
-                  <div className="w-24 h-24 bg-muted rounded-lg overflow-hidden shrink-0">
-                    <img
+                  <div className="relative w-24 h-24 bg-muted rounded-lg overflow-hidden shrink-0">
+                    <Image
                       src={banner.image_url}
                       alt={banner.title}
+                      fill
+                      sizes="96px"
                       className="w-full h-full object-cover"
                     />
                   </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Loader2, CheckCircle, X } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { getAdminReviews, updateReview } from "@/app/actions/admin";
@@ -11,11 +11,7 @@ export default function AdminReviewsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("pending");
 
-  useEffect(() => {
-    loadReviews();
-  }, [filter]);
-
-  const loadReviews = async () => {
+  const loadReviews = useCallback(async () => {
     setLoading(true);
     const approved =
       filter === "approved" ? true : filter === "pending" ? false : undefined;
@@ -23,7 +19,11 @@ export default function AdminReviewsPage() {
     setReviews(r);
     setTotalCount(count);
     setLoading(false);
-  };
+  }, [filter]);
+
+  useEffect(() => {
+    loadReviews();
+  }, [loadReviews]);
 
   const handleApprove = async (reviewId: string) => {
     await updateReview(reviewId, { is_approved: true });

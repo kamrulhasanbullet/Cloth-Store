@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Plus, Search, Package, Loader2 } from "lucide-react";
 import { cn, formatPrice } from "@/lib/utils";
 import { getAdminProducts, updateProduct } from "@/app/actions/admin";
@@ -128,11 +129,13 @@ export default function AdminProductsPage() {
                     >
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                          <div className="relative w-9 h-9 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
                             {primaryImg ? (
-                              <img
+                              <Image
                                 src={primaryImg}
                                 alt={p.name}
+                                fill
+                                sizes="36px"
                                 className="w-full h-full object-cover"
                               />
                             ) : (

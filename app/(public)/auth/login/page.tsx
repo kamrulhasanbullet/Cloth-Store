@@ -18,15 +18,44 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const { error: err } = await supabase.auth.signInWithPassword({
+    const {
+      data: { user },
+      error: err,
+    } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    setLoading(false);
     if (err) {
+      setLoading(false);
       setError(err.message);
+    } else if (!user) {
+      setLoading(false);
+      setError("Signed in, but no user session was returned.");
     } else {
-      router.push("/dashboard");
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      setLoading(false);
+
+      if (profileError) {
+        setError("Signed in, but we could not load your account role.");
+        return;
+      }
+
+      const redirectTo = new URLSearchParams(window.location.search).get(
+        "redirect",
+      );
+      const fallbackPath = profile?.role === "admin" ? "/admin" : "/dashboard";
+      const nextPath =
+        redirectTo?.startsWith("/") &&
+        (profile?.role === "admin" || !redirectTo.startsWith("/admin"))
+          ? redirectTo
+          : fallbackPath;
+
+      router.push(nextPath);
       router.refresh();
     }
   };

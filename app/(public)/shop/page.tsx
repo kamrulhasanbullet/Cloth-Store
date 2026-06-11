@@ -8,13 +8,15 @@ import { ProductFilters } from "@/lib/types";
 import { getProducts } from "@/lib/products";
 import { ShopFilters } from "@/components/shop/shop-filters";
 import { ShopPagination } from "@/components/shop/shop-pagination";
-import { getCategories } from "@/lib/catalouge";
+import { getCategories } from "@/lib/catalogue";
 
 export const metadata: Metadata = {
   title: "Shop — All Products",
   description:
     "Browse our complete collection of premium men's fashion — shirts, pants, t-shirts, and jerseys.",
 };
+
+export const dynamic = "force-dynamic";
 
 interface ShopPageProps {
   searchParams: {

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { ChevronRight, ArrowRight } from "lucide-react";
-import { getCollectionBySlug } from "@/lib/catalouge";
+import { getCollectionBySlug } from "@/lib/catalogue";
 import { getProducts } from "@/lib/products";
 import { ProductCard } from "@/components/product/product-card";
 import { ShopPagination } from "@/components/shop/shop-pagination";
@@ -25,7 +25,7 @@ export async function generateMetadata({
   };
 }
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 export default async function CollectionPage({
   params,

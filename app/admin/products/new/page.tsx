@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -8,9 +8,11 @@ import Link from "next/link";
 export default function NewProductPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     name: "",
     slug: "",
+    category_id: "",
     description: "",
     short_desc: "",
     base_price: "",
@@ -21,16 +23,39 @@ export default function NewProductPage() {
     material: "",
     care_instructions: "",
     total_stock: "",
-    status: "draft",
+    status: "active",
+    is_featured: false,
+    is_new_arrival: true,
+    is_best_seller: false,
   });
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      const { supabase } = await import("@/lib/supabase");
+      const { data } = await supabase
+        .from("categories")
+        .select("id, name")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true });
+
+      setCategories(data ?? []);
+    };
+
+    loadCategories();
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >,
   ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, type, value } = e.target;
+    const checked =
+      e.target instanceof HTMLInputElement ? e.target.checked : false;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,12 +65,14 @@ export default function NewProductPage() {
     try {
       const productData = {
         ...formData,
+        category_id: formData.category_id || null,
         base_price: parseFloat(formData.base_price) || 0,
         sale_price: formData.sale_price
           ? parseFloat(formData.sale_price)
           : null,
         cost_price: parseFloat(formData.cost_price) || 0,
         total_stock: parseInt(formData.total_stock) || 0,
+        is_active: formData.status === "active",
       };
 
       const { supabase } = await import("@/lib/supabase");
@@ -110,6 +137,24 @@ export default function NewProductPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                    Category
+                  </label>
+                  <select
+                    name="category_id"
+                    value={formData.category_id}
+                    onChange={handleChange}
+                    className="input-field"
+                  >
+                    <option value="">No category</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                     Slug
                   </label>
                   <input
@@ -122,6 +167,8 @@ export default function NewProductPage() {
                     className="input-field"
                   />
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                     SKU Prefix
@@ -277,8 +324,8 @@ export default function NewProductPage() {
                   onChange={handleChange}
                   className="input-field"
                 >
-                  <option value="draft">Draft</option>
-                  <option value="active">Active</option>
+                  <option value="active">Active - visible to customers</option>
+                  <option value="draft">Draft - hidden from customers</option>
                   <option value="archived">Archived</option>
                 </select>
               </div>
@@ -295,6 +342,28 @@ export default function NewProductPage() {
                 rows={2}
                 className="input-field"
               />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+              {[
+                ["is_featured", "Featured product"],
+                ["is_new_arrival", "New arrival"],
+                ["is_best_seller", "Best seller"],
+              ].map(([name, label]) => (
+                <label
+                  key={name}
+                  className="flex items-center gap-2 text-sm font-medium text-foreground"
+                >
+                  <input
+                    type="checkbox"
+                    name={name}
+                    checked={Boolean(
+                      formData[name as keyof typeof formData],
+                    )}
+                    onChange={handleChange}
+                  />
+                  {label}
+                </label>
+              ))}
             </div>
           </div>
 

@@ -36,7 +36,7 @@ export default function RegisterPage() {
     const { error: err } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
-      options: { data: { full_name: form.full_name } },
+      options: { data: { full_name: form.full_name, role: "customer" } },
     });
     setLoading(false);
     if (err) setError(err.message);

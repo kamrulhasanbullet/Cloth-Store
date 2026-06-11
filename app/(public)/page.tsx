@@ -6,9 +6,9 @@ import { ProductGridSection } from "@/components/home/product-grid-section";
 import { CollectionBanners } from "@/components/home/collection-banners";
 import { FlashSaleSection } from "@/components/home/flash-sale-section";
 import { PromoCallout } from "@/components/home/promo-callout";
-import { TestimonialsSection } from "@/components/home/tastimonials-section";
+import { TestimonialsSection } from "@/components/home/testimonials-section";
 import { NewsletterSection } from "@/components/home/newsletter-section";
-import { getFeaturedCollections } from "@/lib/catalouge";
+import { getFeaturedCollections } from "@/lib/catalogue";
 import {
   getNewArrivals,
   getBestSellers,
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     "Discover premium men's shirts, pants, t-shirts, and jerseys. Modern fashion for the contemporary Bangladeshi man.",
 };
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const [

@@ -70,6 +70,7 @@ export default function EditProductPage({ params }: ProductPageProps) {
         care_instructions: formData.care_instructions,
         total_stock: parseInt(formData.total_stock),
         status: formData.status,
+        is_active: formData.status === "active",
       };
 
       const result = await updateProduct(params.id, updates);
@@ -300,8 +301,8 @@ export default function EditProductPage({ params }: ProductPageProps) {
                   onChange={handleChange}
                   className="input-field"
                 >
-                  <option value="draft">Draft</option>
-                  <option value="active">Active</option>
+                  <option value="active">Active - visible to customers</option>
+                  <option value="draft">Draft - hidden from customers</option>
                   <option value="archived">Archived</option>
                 </select>
               </div>

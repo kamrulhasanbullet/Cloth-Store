@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import { Loader2, X, Plus, Zap, Clock } from "lucide-react";
 import { cn, formatPrice, formatDate } from "@/lib/utils";
 import {
@@ -20,11 +21,7 @@ export default function AdminFlashSalesPage() {
   const [expiryDate, setExpiryDate] = useState("");
   const [expiryTime, setExpiryTime] = useState("00:00");
 
-  useEffect(() => {
-    loadData();
-  }, [activeTab]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     if (activeTab === "active") {
       const { products } = await getFlashSaleProducts(1, 50);
@@ -34,7 +31,11 @@ export default function AdminFlashSalesPage() {
       setAvailableProducts(products);
     }
     setLoading(false);
-  };
+  }, [activeTab]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleRemoveFlashSale = async (productId: string) => {
     if (!confirm("Remove this product from flash sale?")) return;
@@ -143,10 +144,12 @@ export default function AdminFlashSalesPage() {
                 >
                   <div className="flex items-start gap-4 p-4">
                     {primaryImg && (
-                      <div className="w-20 h-20 bg-muted rounded-lg overflow-hidden shrink-0">
-                        <img
+                      <div className="relative w-20 h-20 bg-muted rounded-lg overflow-hidden shrink-0">
+                        <Image
                           src={primaryImg}
                           alt={product.name}
+                          fill
+                          sizes="80px"
                           className="w-full h-full object-cover"
                         />
                       </div>
@@ -257,10 +260,12 @@ export default function AdminFlashSalesPage() {
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-3">
                             {primaryImg && (
-                              <div className="w-10 h-10 bg-muted rounded-lg overflow-hidden">
-                                <img
+                              <div className="relative w-10 h-10 bg-muted rounded-lg overflow-hidden">
+                                <Image
                                   src={primaryImg}
                                   alt={product.name}
+                                  fill
+                                  sizes="40px"
                                   className="w-full h-full object-cover"
                                 />
                               </div>
