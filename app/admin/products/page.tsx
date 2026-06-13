@@ -117,10 +117,12 @@ export default function AdminProductsPage() {
                   const primaryImg =
                     p.images?.find((img: any) => img.is_primary)?.url ?? "";
                   const totalStock =
-                    p.variants?.reduce(
-                      (s: number, v: any) => s + v.stock_qty,
-                      0,
-                    ) ?? p.total_stock;
+                    p.variants && p.variants.length > 0
+                      ? p.variants.reduce(
+                          (s: number, v: any) => s + (v.stock_qty ?? 0),
+                          0,
+                        )
+                      : p.total_stock;
 
                   return (
                     <tr

@@ -36,7 +36,11 @@ export function ProductCard({
     product.sale_price,
   );
   const discountPct = getDiscountPercent(product.base_price, effectivePrice);
-  const isOutOfStock = product.total_stock === 0;
+  const totalStock =
+    product.variants && product.variants.length > 0
+      ? product.variants.reduce((sum, v) => sum + (v.stock_qty ?? 0), 0)
+      : product.total_stock;
+  const isOutOfStock = totalStock === 0;
 
   const badgeText = product.is_flash_sale
     ? "Flash Sale"
