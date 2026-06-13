@@ -93,7 +93,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
         selectedVariant.stock_qty,
         selectedVariant.low_stock_threshold,
       )
-    : "out_of_stock";
+    : getStockStatus(product.total_stock, 5);
 
   const stockColors = {
     in_stock: "text-emerald-600",
@@ -103,7 +103,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
 
   const stockLabels = {
     in_stock: "In Stock",
-    low_stock: `Only ${selectedVariant?.stock_qty ?? 0} left`,
+    low_stock: `Only ${selectedVariant?.stock_qty ?? product.total_stock} left`,
     out_of_stock: "Out of Stock",
   };
 
