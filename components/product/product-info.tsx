@@ -19,6 +19,7 @@ import {
   getStockStatus,
 } from "@/lib/utils";
 import type { Product, ProductVariant } from "@/lib/types";
+import { toggleWishlist } from "@/app/actions/wishlist";
 
 interface ProductInfoProps {
   product: Product;
@@ -295,7 +296,14 @@ export function ProductInfo({ product }: ProductInfoProps) {
           {stockStatus === "out_of_stock" ? "Out of Stock" : "Add to Cart"}
         </button>
         <button
-          onClick={() => setIsWishlisted(!isWishlisted)}
+          onClick={async () => {
+            setIsWishlisted(!isWishlisted);
+            try {
+              await toggleWishlist(product.id);
+            } catch {
+              setIsWishlisted((prev) => !prev);
+            }
+          }}
           className={cn(
             "w-12 h-12 border rounded-md flex items-center justify-center transition-all hover:scale-105",
             isWishlisted

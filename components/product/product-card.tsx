@@ -13,6 +13,7 @@ import {
   truncate,
 } from "@/lib/utils";
 import type { Product } from "@/lib/types";
+import { toggleWishlist } from "@/app/actions/wishlist";
 
 interface ProductCardProps {
   product: Product;
@@ -114,9 +115,14 @@ export function ProductCard({
           {/* Quick actions */}
           <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0">
             <button
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.preventDefault();
                 setIsWishlisted(!isWishlisted);
+                try {
+                  await toggleWishlist(product.id);
+                } catch {
+                  setIsWishlisted((prev) => !prev); 
+                }
               }}
               className={cn(
                 "w-9 h-9 rounded-full flex items-center justify-center shadow-md transition-all duration-150 active:scale-90",
