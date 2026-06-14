@@ -73,3 +73,16 @@ export async function isInWishlist(productId: string): Promise<boolean> {
 
   return !!data;
 }
+
+export async function getWishlistProductIds(): Promise<string[]> {
+  const userId = await getServerUserId();
+  if (!userId) return [];
+
+  const sb = await getServerSupabase();
+  const { data } = await sb
+    .from("wishlists")
+    .select("product_id")
+    .eq("user_id", userId);
+
+  return (data ?? []).map((w) => w.product_id);
+}

@@ -19,14 +19,16 @@ interface ProductCardProps {
   product: Product;
   className?: string;
   priority?: boolean;
+  initialWishlisted?: boolean;
 }
 
 export function ProductCard({
   product,
   className,
   priority = false,
+  initialWishlisted = false,
 }: ProductCardProps) {
-  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [isWishlisted, setIsWishlisted] = useState(initialWishlisted);
   const [imageLoaded, setImageLoaded] = useState(false);
 
   const primaryImage =
@@ -121,7 +123,7 @@ export function ProductCard({
                 try {
                   await toggleWishlist(product.id);
                 } catch {
-                  setIsWishlisted((prev) => !prev); 
+                  setIsWishlisted((prev) => !prev);
                 }
               }}
               className={cn(

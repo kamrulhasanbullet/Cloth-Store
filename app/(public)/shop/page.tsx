@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Search } from "lucide-react";
-import {
-  ProductCard,
-} from "@/components/product/product-card";
+import { ProductCard } from "@/components/product/product-card";
 import { ProductFilters } from "@/lib/types";
 import { getProducts } from "@/lib/products";
 import { ShopFilters } from "@/components/shop/shop-filters";
 import { ShopPagination } from "@/components/shop/shop-pagination";
 import { getCategories } from "@/lib/catalogue";
+import { getWishlistProductIds } from "@/app/actions/wishlist";
 
 export const metadata: Metadata = {
   title: "Shop — All Products",
@@ -57,8 +56,15 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
     is_featured: searchParams.featured === "true",
   };
 
-  const [{ data: products, count, total_pages }, categories] =
-    await Promise.all([getProducts(filters), getCategories()]);
+  const [
+    { data: products, count, total_pages },
+    categories,
+    wishlistProductIds,
+  ] = await Promise.all([
+    getProducts(filters),
+    getCategories(),
+    getWishlistProductIds(),
+  ]);
 
   const buildPageUrl = (p: number) => {
     const params = new URLSearchParams();
@@ -137,7 +143,12 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
                 <>
                   <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
                     {products.map((p, i) => (
-                      <ProductCard key={p.id} product={p} priority={i < 4} />
+                      <ProductCard
+                        key={p.id}
+                        product={p}
+                        priority={i < 4}
+                        initialWishlisted={wishlistProductIds.includes(p.id)}
+                      />
                     ))}
                   </div>
                   <ShopPagination
