@@ -35,7 +35,20 @@ export async function getProducts(
     .eq("status", "active");
 
   if (search) query = query.ilike("name", `%${search}%`);
-  if (category) query = query.eq("categories.slug", category);
+  if (category) {
+    const { data: cat } = await supabase
+      .from("categories")
+      .select("id")
+      .eq("slug", category)
+      .maybeSingle();
+
+    if (cat) {
+      query = query.eq("category_id", cat.id);
+    } else {
+      return { data: [], count: 0, page, per_page, total_pages: 0 };
+    }
+  }
+  
   if (min_price !== undefined) query = query.gte("base_price", min_price);
   if (max_price !== undefined) query = query.lte("base_price", max_price);
   if (is_featured) query = query.eq("is_featured", true);
