@@ -6,6 +6,7 @@ import { ProductGallery } from "@/components/product/product-gallery";
 import { ProductInfo } from "@/components/product/product-info";
 import { ProductCard } from "@/components/product/product-card";
 import { getProductBySlug, getRelatedProducts } from "@/lib/products";
+import { getWishlistProductIds } from "@/app/actions/wishlist";
 
 interface ProductPageProps {
   params: { slug: string };
@@ -36,7 +37,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const product = await getProductBySlug(params.slug);
   if (!product) notFound();
 
-  const related = await getRelatedProducts(product.id, product.category_id);
+  const [related, wishlistProductIds] = await Promise.all([
+    getRelatedProducts(product.id, product.category_id),
+    getWishlistProductIds(),
+  ]);
 
   const sortedImages = [...(product.images ?? [])].sort((a, b) => {
     if (a.is_primary && !b.is_primary) return -1;
@@ -83,7 +87,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
       <div className="container-main py-10">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-16">
           <ProductGallery images={sortedImages} productName={product.name} />
-          <ProductInfo product={product} />
+          {/* <ProductInfo product={product} /> */}
+          <ProductInfo
+            product={product}
+            initialWishlisted={wishlistProductIds.includes(product.id)}
+          />
         </div>
 
         {/* Related products */}
@@ -92,7 +100,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
             <h2 className="section-title mb-8">You May Also Like</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
               {related.map((p) => (
-                <ProductCard key={p.id} product={p} />
+                <ProductCard
+                  key={p.id}
+                  product={p}
+                  initialWishlisted={wishlistProductIds.includes(p.id)}
+                />
               ))}
             </div>
           </section>

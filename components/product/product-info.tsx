@@ -23,6 +23,7 @@ import { toggleWishlist } from "@/app/actions/wishlist";
 
 interface ProductInfoProps {
   product: Product;
+  initialWishlisted?: boolean;
 }
 
 function AccordionItem({
@@ -54,14 +55,17 @@ function AccordionItem({
   );
 }
 
-export function ProductInfo({ product }: ProductInfoProps) {
+export function ProductInfo({
+  product,
+  initialWishlisted = false,
+}: ProductInfoProps) {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
     product.variants?.find((v) => v.is_active && v.stock_qty > 0) ??
       product.variants?.[0] ??
       null,
   );
   const [quantity, setQuantity] = useState(1);
-  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [isWishlisted, setIsWishlisted] = useState(initialWishlisted);
 
   const allSizes = product.variants?.map((v) => v.size) ?? [];
   const sizes = allSizes.filter((s, i) => allSizes.indexOf(s) === i);
