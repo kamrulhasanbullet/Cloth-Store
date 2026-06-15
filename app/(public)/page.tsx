@@ -15,6 +15,7 @@ import {
   getFeaturedProducts,
   getFlashSaleProducts,
 } from "@/lib/products";
+import { getWishlistProductIds } from "../actions/wishlist";
 
 export const metadata: Metadata = {
   title: "ARISTO — Premium Men's Fashion Bangladesh",
@@ -31,12 +32,14 @@ export default async function HomePage() {
     featuredProducts,
     flashSaleProducts,
     featuredCollections,
+    wishlistProductIds,
   ] = await Promise.allSettled([
     getNewArrivals(8),
     getBestSellers(8),
     getFeaturedProducts(8),
     getFlashSaleProducts(6),
     getFeaturedCollections(),
+    getWishlistProductIds(),
   ]).then((results) =>
     results.map((r) => (r.status === "fulfilled" ? r.value : [])),
   );
@@ -54,6 +57,7 @@ export default async function HomePage() {
         products={
           newArrivals as Parameters<typeof ProductGridSection>[0]["products"]
         }
+        wishlistProductIds={wishlistProductIds as string[]}
         viewAllHref="/collections/new-arrivals"
       />
 

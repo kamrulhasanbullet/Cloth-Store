@@ -12,6 +12,7 @@ interface ProductGridSectionProps {
   title: string;
   subtitle?: string;
   products: Product[];
+  wishlistProductIds?: string[];
   viewAllHref: string;
   viewAllLabel?: string;
   isLoading?: boolean;
@@ -22,6 +23,7 @@ export function ProductGridSection({
   title,
   subtitle,
   products,
+  wishlistProductIds = [],
   viewAllHref,
   viewAllLabel = "View All",
   isLoading = false,
@@ -60,7 +62,12 @@ export function ProductGridSection({
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
             {products.map((p, i) => (
-              <ProductCard key={p.id} product={p} priority={i < 4} />
+              <ProductCard
+                key={p.id}
+                product={p}
+                priority={i < 4}
+                initialWishlisted={wishlistProductIds.includes(p.id)}
+              />
             ))}
           </div>
         )}
