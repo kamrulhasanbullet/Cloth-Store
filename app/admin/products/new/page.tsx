@@ -4,11 +4,24 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { createProduct } from "@/app/actions/admin";
+
+const COLLECTIONS = [
+  { id: "91df8360-bd18-44a4-b8c8-4144c68982f7", name: "Summer Collection" },
+  { id: "2567f2e1-78d6-4f11-891e-519fe3e171aa", name: "Winter Collection" },
+  { id: "9166298b-329b-4a1f-871d-b71b77ab8020", name: "Eid Collection" },
+  { id: "89dc15b8-e7b8-4cb2-b945-87721d4bb1b3", name: "Premium Collection" },
+  { id: "aa10df44-c900-45fc-a45f-c2d235f78ee7", name: "Limited Edition" },
+  { id: "dbe72a73-8e45-4e07-a9ab-2af7c4620778", name: "New Arrivals" },
+];
 
 export default function NewProductPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
+  const [selectedCollections, setSelectedCollections] = useState<string[]>([
+    "dbe72a73-8e45-4e07-a9ab-2af7c4620778",
+  ]);
   const [formData, setFormData] = useState({
     name: "",
     slug: "",
@@ -37,10 +50,8 @@ export default function NewProductPage() {
         .select("id, name")
         .eq("is_active", true)
         .order("sort_order", { ascending: true });
-
       setCategories(data ?? []);
     };
-
     loadCategories();
   }, []);
 
@@ -56,6 +67,12 @@ export default function NewProductPage() {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+  };
+
+  const toggleCollection = (id: string) => {
+    setSelectedCollections((prev) =>
+      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id],
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -75,16 +92,10 @@ export default function NewProductPage() {
         is_active: formData.status === "active",
       };
 
-      const { supabase } = await import("@/lib/supabase");
-      const { data, error } = await supabase
-        .from("products")
-        .insert([productData])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      router.push("/admin/products");
+      const result = await createProduct(productData, selectedCollections);
+      if (result.success) {
+        router.push("/admin/products");
+      }
     } catch (err: any) {
       console.error("Error creating product:", err);
     } finally {
@@ -146,9 +157,9 @@ export default function NewProductPage() {
                     className="input-field"
                   >
                     <option value="">No category</option>
-                    {categories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
                       </option>
                     ))}
                   </select>
@@ -168,20 +179,18 @@ export default function NewProductPage() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                    SKU Prefix
-                  </label>
-                  <input
-                    type="text"
-                    name="sku_prefix"
-                    value={formData.sku_prefix}
-                    onChange={handleChange}
-                    placeholder="SHIRT-001"
-                    className="input-field"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                  SKU Prefix
+                </label>
+                <input
+                  type="text"
+                  name="sku_prefix"
+                  value={formData.sku_prefix}
+                  onChange={handleChange}
+                  placeholder="SHIRT-001"
+                  className="input-field"
+                />
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">
@@ -212,7 +221,62 @@ export default function NewProductPage() {
             </div>
           </div>
 
-          <div className="border-t border-border my-5" />
+          <div className="border-t border-border" />
+
+          {/* Collections */}
+          <div>
+            <h2 className="text-sm font-semibold text-foreground mb-1">
+              Collections
+            </h2>
+            <p className="text-xs text-muted-foreground mb-3">
+              Product টি যে collections এ থাকবে সেগুলো select করো
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {COLLECTIONS.map((col) => (
+                <label
+                  key={col.id}
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors text-sm font-medium ${
+                    selectedCollections.includes(col.id)
+                      ? "border-foreground bg-foreground/5 text-foreground"
+                      : "border-border text-muted-foreground hover:border-foreground/40"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedCollections.includes(col.id)}
+                    onChange={() => toggleCollection(col.id)}
+                    className="hidden"
+                  />
+                  <span
+                    className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
+                      selectedCollections.includes(col.id)
+                        ? "bg-foreground border-foreground"
+                        : "border-border"
+                    }`}
+                  >
+                    {selectedCollections.includes(col.id) && (
+                      <svg
+                        className="w-2.5 h-2.5 text-background"
+                        fill="none"
+                        viewBox="0 0 10 10"
+                      >
+                        <path
+                          d="M1.5 5l2.5 2.5 4.5-4.5"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
+                  </span>
+                  {col.name}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="border-t border-border" />
 
           {/* Pricing */}
           <div>
@@ -266,7 +330,7 @@ export default function NewProductPage() {
             </div>
           </div>
 
-          <div className="border-t border-border my-5" />
+          <div className="border-t border-border" />
 
           {/* Product Details */}
           <div>
@@ -338,7 +402,7 @@ export default function NewProductPage() {
                 name="care_instructions"
                 value={formData.care_instructions}
                 onChange={handleChange}
-                placeholder="e.g. Machine wash cold, lay flat to dry"
+                placeholder="e.g. Machine wash cold"
                 rows={2}
                 className="input-field"
               />
@@ -356,9 +420,7 @@ export default function NewProductPage() {
                   <input
                     type="checkbox"
                     name={name}
-                    checked={Boolean(
-                      formData[name as keyof typeof formData],
-                    )}
+                    checked={Boolean(formData[name as keyof typeof formData])}
                     onChange={handleChange}
                   />
                   {label}
@@ -367,7 +429,7 @@ export default function NewProductPage() {
             </div>
           </div>
 
-          <div className="border-t border-border my-5" />
+          <div className="border-t border-border" />
 
           {/* Actions */}
           <div className="flex gap-3 justify-end">

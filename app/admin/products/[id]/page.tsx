@@ -4,7 +4,16 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, AlertCircle } from "lucide-react";
 import Link from "next/link";
-import { updateProduct } from "@/app/actions/admin";
+import { updateProduct, updateProductCollections } from "@/app/actions/admin";
+
+const COLLECTIONS = [
+  { id: "91df8360-bd18-44a4-b8c8-4144c68982f7", name: "Summer Collection" },
+  { id: "2567f2e1-78d6-4f11-891e-519fe3e171aa", name: "Winter Collection" },
+  { id: "9166298b-329b-4a1f-871d-b71b77ab8020", name: "Eid Collection" },
+  { id: "89dc15b8-e7b8-4cb2-b945-87721d4bb1b3", name: "Premium Collection" },
+  { id: "aa10df44-c900-45fc-a45f-c2d235f78ee7", name: "Limited Edition" },
+  { id: "dbe72a73-8e45-4e07-a9ab-2af7c4620778", name: "New Arrivals" },
+];
 
 interface ProductPageProps {
   params: { id: string };
@@ -16,20 +25,27 @@ export default function EditProductPage({ params }: ProductPageProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<any>(null);
+  const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
 
   useEffect(() => {
     const loadProduct = async () => {
       try {
         const { supabase } = await import("@/lib/supabase");
-        const { data, error } = await supabase
-          .from("products")
-          .select("*")
-          .eq("id", params.id)
-          .single();
 
-        if (error) throw error;
-        setProduct(data);
-        setFormData(data);
+        const [productRes, collectionsRes] = await Promise.all([
+          supabase.from("products").select("*").eq("id", params.id).single(),
+          supabase
+            .from("product_collections")
+            .select("collection_id")
+            .eq("product_id", params.id),
+        ]);
+
+        if (productRes.error) throw productRes.error;
+        setProduct(productRes.data);
+        setFormData(productRes.data);
+        setSelectedCollections(
+          (collectionsRes.data ?? []).map((r: any) => r.collection_id),
+        );
       } catch (err) {
         console.error("Error loading product:", err);
       } finally {
@@ -45,8 +61,19 @@ export default function EditProductPage({ params }: ProductPageProps) {
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >,
   ) => {
-    const { name, value } = e.target;
-    setFormData((prev: any) => ({ ...prev, [name]: value }));
+    const { name, type, value } = e.target;
+    const checked =
+      e.target instanceof HTMLInputElement ? e.target.checked : false;
+    setFormData((prev: any) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const toggleCollection = (id: string) => {
+    setSelectedCollections((prev) =>
+      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id],
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -71,10 +98,17 @@ export default function EditProductPage({ params }: ProductPageProps) {
         total_stock: parseInt(formData.total_stock),
         status: formData.status,
         is_active: formData.status === "active",
+        is_featured: formData.is_featured,
+        is_new_arrival: formData.is_new_arrival,
+        is_best_seller: formData.is_best_seller,
       };
 
-      const result = await updateProduct(params.id, updates);
-      if (result.success) {
+      const [productResult, collectionsResult] = await Promise.all([
+        updateProduct(params.id, updates),
+        updateProductCollections(params.id, selectedCollections),
+      ]);
+
+      if (productResult.success && collectionsResult.success) {
         router.push("/admin/products");
       }
     } catch (err: any) {
@@ -129,6 +163,7 @@ export default function EditProductPage({ params }: ProductPageProps) {
         className="bg-background border border-border rounded-xl p-6 max-w-2xl"
       >
         <div className="space-y-5">
+          {/* Basic Info */}
           <div>
             <h2 className="text-sm font-semibold text-foreground mb-4">
               Basic Information
@@ -199,8 +234,64 @@ export default function EditProductPage({ params }: ProductPageProps) {
             </div>
           </div>
 
-          <div className="border-t border-border my-5" />
+          <div className="border-t border-border" />
 
+          {/* Collections */}
+          <div>
+            <h2 className="text-sm font-semibold text-foreground mb-1">
+              Collections
+            </h2>
+            <p className="text-xs text-muted-foreground mb-3">
+              Select the collections this product belongs to
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {COLLECTIONS.map((col) => (
+                <label
+                  key={col.id}
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors text-sm font-medium ${
+                    selectedCollections.includes(col.id)
+                      ? "border-foreground bg-foreground/5 text-foreground"
+                      : "border-border text-muted-foreground hover:border-foreground/40"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedCollections.includes(col.id)}
+                    onChange={() => toggleCollection(col.id)}
+                    className="hidden"
+                  />
+                  <span
+                    className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
+                      selectedCollections.includes(col.id)
+                        ? "bg-foreground border-foreground"
+                        : "border-border"
+                    }`}
+                  >
+                    {selectedCollections.includes(col.id) && (
+                      <svg
+                        className="w-2.5 h-2.5 text-background"
+                        fill="none"
+                        viewBox="0 0 10 10"
+                      >
+                        <path
+                          d="M1.5 5l2.5 2.5 4.5-4.5"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
+                  </span>
+                  {col.name}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="border-t border-border" />
+
+          {/* Pricing */}
           <div>
             <h2 className="text-sm font-semibold text-foreground mb-4">
               Pricing
@@ -248,8 +339,9 @@ export default function EditProductPage({ params }: ProductPageProps) {
             </div>
           </div>
 
-          <div className="border-t border-border my-5" />
+          <div className="border-t border-border" />
 
+          {/* Product Details */}
           <div>
             <h2 className="text-sm font-semibold text-foreground mb-4">
               Product Details
@@ -319,9 +411,29 @@ export default function EditProductPage({ params }: ProductPageProps) {
                 className="input-field"
               />
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+              {[
+                ["is_featured", "Featured product"],
+                ["is_new_arrival", "New arrival"],
+                ["is_best_seller", "Best seller"],
+              ].map(([name, label]) => (
+                <label
+                  key={name}
+                  className="flex items-center gap-2 text-sm font-medium text-foreground"
+                >
+                  <input
+                    type="checkbox"
+                    name={name}
+                    checked={Boolean(formData?.[name])}
+                    onChange={handleChange}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
           </div>
 
-          <div className="border-t border-border my-5" />
+          <div className="border-t border-border" />
 
           <div className="flex gap-3 justify-end">
             <Link

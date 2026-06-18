@@ -513,3 +513,56 @@ export async function getProductsNotInFlashSale(page = 1, perPage = 50) {
   if (error) return { products: [], count: 0 };
   return { products: data ?? [], count: count ?? 0 };
 }
+
+export async function createProduct(
+  productData: Record<string, any>,
+  collectionIds: string[],
+) {
+  const adminId = await requireAdmin();
+  if (!adminId) return { error: "Unauthorized", success: false, id: null };
+
+  const adminClient = getServiceSupabase();
+
+  const { data, error } = await adminClient
+    .from("products")
+    .insert([productData])
+    .select()
+    .single();
+
+  if (error) return { error: error.message, success: false, id: null };
+
+  if (collectionIds.length > 0) {
+    const rows = collectionIds.map((collection_id) => ({
+      product_id: data.id,
+      collection_id,
+    }));
+    await adminClient.from("product_collections").insert(rows);
+  }
+
+  return { error: null, success: true, id: data.id };
+}
+
+export async function updateProductCollections(
+  productId: string,
+  collectionIds: string[],
+) {
+  const adminId = await requireAdmin();
+  if (!adminId) return { error: "Unauthorized", success: false };
+
+  const adminClient = getServiceSupabase();
+
+  await adminClient
+    .from("product_collections")
+    .delete()
+    .eq("product_id", productId);
+
+  if (collectionIds.length > 0) {
+    const rows = collectionIds.map((collection_id) => ({
+      product_id: productId,
+      collection_id,
+    }));
+    await adminClient.from("product_collections").insert(rows);
+  }
+
+  return { error: null, success: true };
+}
