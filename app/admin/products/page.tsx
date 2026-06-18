@@ -96,7 +96,7 @@ export default function AdminProductsPage() {
                 <tr className="border-b border-border bg-secondary/30">
                   {[
                     "Product",
-                    "Category",
+                    "Category / Collection",
                     "Price",
                     "Stock",
                     "Status",
@@ -158,7 +158,14 @@ export default function AdminProductsPage() {
                         </div>
                       </td>
                       <td className="px-5 py-3.5 text-muted-foreground">
-                        {(p.category as any)?.name ?? ""}
+                        {(p.category as any)?.name
+                          ? (p.category as any).name
+                          : (p as any).collections?.length > 0
+                            ? (p as any).collections
+                                .map((c: any) => c.collection?.name)
+                                .filter(Boolean)
+                                .join(", ")
+                            : "—"}
                       </td>
                       <td className="px-5 py-3.5 font-semibold text-foreground">
                         {p.sale_price ? (

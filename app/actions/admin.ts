@@ -138,7 +138,7 @@ export async function getAdminProducts(page = 1, perPage = 20) {
   const { data, count, error } = await adminClient
     .from("products")
     .select(
-      "*, category:categories(name), images:product_images(url, is_primary), variants:product_variants(sku, stock_qty)",
+      "*, category:categories(name), images:product_images(url, is_primary), variants:product_variants(sku, stock_qty), collections:product_collections(collection:collections(name))",
       { count: "exact" },
     )
     .order("created_at", { ascending: false })
