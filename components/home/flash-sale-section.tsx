@@ -6,7 +6,7 @@ import { Zap } from "lucide-react";
 import { ProductCard } from "@/components/product/product-card";
 import type { Product } from "@/lib/types";
 
-function useCountdown(endDate: Date) {
+function useCountdown(endTimeMs: number | null) {
   const [timeLeft, setTimeLeft] = useState({
     hours: 0,
     minutes: 0,
@@ -14,8 +14,10 @@ function useCountdown(endDate: Date) {
   });
 
   useEffect(() => {
+    if (!endTimeMs) return;
+
     const calc = () => {
-      const diff = endDate.getTime() - Date.now();
+      const diff = endTimeMs - Date.now();
       if (diff <= 0) return { hours: 0, minutes: 0, seconds: 0 };
       return {
         hours: Math.floor(diff / 3600000),
@@ -23,10 +25,11 @@ function useCountdown(endDate: Date) {
         seconds: Math.floor((diff % 60000) / 1000),
       };
     };
+
     setTimeLeft(calc());
     const id = setInterval(() => setTimeLeft(calc()), 1000);
     return () => clearInterval(id);
-  }, [endDate]);
+  }, [endTimeMs]);
 
   return timeLeft;
 }
@@ -36,12 +39,29 @@ interface FlashSaleSectionProps {
 }
 
 export function FlashSaleSection({ products }: FlashSaleSectionProps) {
-  const saleEnd = useMemo(() => new Date(Date.now() + 6 * 3600000), []);
-  const { hours, minutes, seconds } = useCountdown(saleEnd);
+  const now = Date.now();
 
+  const activeProducts = useMemo(
+    () =>
+      products.filter((p: any) => {
+        if (!p.flash_sale_ends_at) return true;
+        return new Date(p.flash_sale_ends_at).getTime() > now;
+      }),
+    [products],
+  );
+
+  const earliestExpiryMs = useMemo(() => {
+    return activeProducts.reduce((earliest: number | null, p: any) => {
+      if (!p.flash_sale_ends_at) return earliest;
+      const ms = new Date(p.flash_sale_ends_at).getTime();
+      return earliest === null || ms < earliest ? ms : earliest;
+    }, null);
+  }, [activeProducts]);
+
+  const { hours, minutes, seconds } = useCountdown(earliestExpiryMs);
   const pad = (n: number) => String(n).padStart(2, "0");
 
-  if (products.length === 0) return null;
+  if (activeProducts.length === 0) return null;
 
   return (
     <section className="section-padding bg-foreground text-background">
@@ -61,7 +81,6 @@ export function FlashSaleSection({ products }: FlashSaleSectionProps) {
             </div>
           </div>
 
-          {/* Countdown */}
           <div className="flex items-center gap-3">
             <p className="text-background/60 text-sm hidden sm:block">
               Ends in:
@@ -99,10 +118,10 @@ export function FlashSaleSection({ products }: FlashSaleSectionProps) {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {products.slice(0, 6).map((p) => (
+          {activeProducts.slice(0, 6).map((p) => (
             <div
               key={p.id}
-              className="[&_.product-card-hover]:bg-background/5 [&_h3]:text-background [&_p]:text-background/60 [&_.text-foreground]:text-background [&_.text-muted-foreground]:text-background/60"
+              className="[&_.product-card-hover]:bg-background/5 [&_h3]:text-background [&_p]:text-background/60 [&_.text-foreground]:text-background [&_.text-muted-foreground]:text-background/60 [&_button.w-9]:bg-white/15 [&_button.w-9]:text-white [&_button.w-9:hover]:bg-white/25 [&_.group:hover_button.w-9]:opacity-100"
             >
               <ProductCard product={p} />
             </div>

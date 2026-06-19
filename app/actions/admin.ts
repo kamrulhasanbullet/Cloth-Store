@@ -456,17 +456,29 @@ export async function getFlashSaleProducts(page = 1, perPage = 50) {
   return { products: data ?? [], count: count ?? 0 };
 }
 
-export async function addToFlashSale(productId: string, expiresAt: string) {
+export async function addToFlashSale(
+  productId: string,
+  expiresAt: string,
+  flashSalePrice: number,
+) {
   const adminId = await requireAdmin();
   if (!adminId) return { error: "Unauthorized", success: false };
 
   const adminClient = getServiceSupabase();
+
+  const { data: product } = await adminClient
+    .from("products")
+    .select("sale_price")
+    .eq("id", productId)
+    .single();
 
   const { error } = await adminClient
     .from("products")
     .update({
       is_flash_sale: true,
       flash_sale_ends_at: expiresAt,
+      flash_sale_original_price: product?.sale_price ?? null,
+      sale_price: flashSalePrice,
     })
     .eq("id", productId);
 
@@ -480,11 +492,19 @@ export async function removeFromFlashSale(productId: string) {
 
   const adminClient = getServiceSupabase();
 
+  const { data: product } = await adminClient
+    .from("products")
+    .select("flash_sale_original_price")
+    .eq("id", productId)
+    .single();
+
   const { error } = await adminClient
     .from("products")
     .update({
       is_flash_sale: false,
       flash_sale_ends_at: null,
+      sale_price: product?.flash_sale_original_price ?? null,
+      flash_sale_original_price: null,
     })
     .eq("id", productId);
 

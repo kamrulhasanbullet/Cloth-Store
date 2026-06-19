@@ -20,6 +20,7 @@ export default function AdminFlashSalesPage() {
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
   const [expiryDate, setExpiryDate] = useState("");
   const [expiryTime, setExpiryTime] = useState("00:00");
+  const [flashSalePrice, setFlashSalePrice] = useState("");
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -45,17 +46,22 @@ export default function AdminFlashSalesPage() {
 
   const handleAddFlashSale = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedProduct || !expiryDate) return;
+    if (!selectedProduct || !expiryDate || !flashSalePrice) return;
 
     const expiresAtDateTime = new Date(
       `${expiryDate}T${expiryTime}`,
     ).toISOString();
 
-    await addToFlashSale(selectedProduct, expiresAtDateTime);
+    await addToFlashSale(
+      selectedProduct,
+      expiresAtDateTime,
+      parseFloat(flashSalePrice),
+    );
     setShowAddModal(false);
     setSelectedProduct(null);
     setExpiryDate("");
     setExpiryTime("00:00");
+    setFlashSalePrice("");
     loadData();
   };
 
@@ -341,6 +347,32 @@ export default function AdminFlashSalesPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1.5">
+                  Flash Sale Price (BDT)
+                </label>
+                <input
+                  type="number"
+                  value={flashSalePrice}
+                  onChange={(e) => setFlashSalePrice(e.target.value)}
+                  placeholder="e.g. 799"
+                  step="0.01"
+                  required
+                  className="input-field"
+                />
+                {selectedProduct &&
+                  (() => {
+                    const p = availableProducts.find(
+                      (x) => x.id === selectedProduct,
+                    );
+                    return p ? (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Original price: {formatPrice(p.base_price)}
+                      </p>
+                    ) : null;
+                  })()}
               </div>
 
               <div>
