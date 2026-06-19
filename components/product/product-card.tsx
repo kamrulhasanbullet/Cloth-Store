@@ -20,6 +20,7 @@ interface ProductCardProps {
   className?: string;
   priority?: boolean;
   initialWishlisted?: boolean;
+  darkMode?: boolean;
 }
 
 export function ProductCard({
@@ -27,6 +28,7 @@ export function ProductCard({
   className,
   priority = false,
   initialWishlisted = false,
+  darkMode = false,
 }: ProductCardProps) {
   const [isWishlisted, setIsWishlisted] = useState(initialWishlisted);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -130,7 +132,9 @@ export function ProductCard({
                 "w-9 h-9 rounded-full flex items-center justify-center shadow-md transition-all duration-150 active:scale-90",
                 isWishlisted
                   ? "bg-red-50 text-red-500"
-                  : "bg-background text-muted-foreground hover:text-foreground",
+                  : darkMode
+                    ? "bg-black/40 border border-white/40 text-white hover:bg-white/10"
+                    : "bg-background text-muted-foreground hover:text-foreground",
               )}
               aria-label="Add to wishlist"
             >
@@ -141,7 +145,12 @@ export function ProductCard({
                 e.preventDefault();
                 window.location.href = `/products/${product.slug}`;
               }}
-              className="w-9 h-9 bg-background rounded-full flex items-center justify-center shadow-md text-muted-foreground hover:text-foreground transition-colors"
+              className={cn(
+                "w-9 h-9 rounded-full flex items-center justify-center shadow-md transition-colors",
+                darkMode
+                  ? "bg-black/40 border border-white/40 text-white hover:bg-white/10"
+                  : "bg-background text-muted-foreground hover:text-foreground",
+              )}
               aria-label="Quick view"
             >
               <Eye size={16} />

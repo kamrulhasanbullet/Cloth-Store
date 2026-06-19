@@ -123,7 +123,7 @@ export function FlashSaleSection({ products }: FlashSaleSectionProps) {
               key={p.id}
               className="[&_.product-card-hover]:bg-background/5 [&_h3]:text-background [&_p]:text-background/60 [&_.text-foreground]:text-background [&_.text-muted-foreground]:text-background/60 [&_button.w-9]:bg-white/15 [&_button.w-9]:text-white [&_button.w-9:hover]:bg-white/25 [&_.group:hover_button.w-9]:opacity-100"
             >
-              <ProductCard product={p} />
+              <ProductCard product={p} darkMode={true} />
             </div>
           ))}
         </div>
