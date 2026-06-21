@@ -4,7 +4,11 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, AlertCircle } from "lucide-react";
 import Link from "next/link";
-import { updateProduct, updateProductCollections } from "@/app/actions/admin";
+import {
+  saveProductVariants,
+  updateProduct,
+  updateProductCollections,
+} from "@/app/actions/admin";
 
 const COLLECTIONS = [
   { id: "91df8360-bd18-44a4-b8c8-4144c68982f7", name: "Summer Collection" },
@@ -26,18 +30,26 @@ export default function EditProductPage({ params }: ProductPageProps) {
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<any>(null);
   const [selectedCollections, setSelectedCollections] = useState<string[]>([]);
+  const [variants, setVariants] = useState<
+    { size: string; stock_qty: number; id?: string }[]
+  >([]);
 
   useEffect(() => {
     const loadProduct = async () => {
       try {
         const { supabase } = await import("@/lib/supabase");
 
-        const [productRes, collectionsRes] = await Promise.all([
+        const [productRes, collectionsRes, variantsRes] = await Promise.all([
           supabase.from("products").select("*").eq("id", params.id).single(),
           supabase
             .from("product_collections")
             .select("collection_id")
             .eq("product_id", params.id),
+          supabase
+            .from("product_variants")
+            .select("id, size, stock_qty")
+            .eq("product_id", params.id)
+            .eq("is_active", true),
         ]);
 
         if (productRes.error) throw productRes.error;
@@ -45,6 +57,13 @@ export default function EditProductPage({ params }: ProductPageProps) {
         setFormData(productRes.data);
         setSelectedCollections(
           (collectionsRes.data ?? []).map((r: any) => r.collection_id),
+        );
+        setVariants(
+          (variantsRes.data ?? []).map((v: any) => ({
+            id: v.id,
+            size: v.size,
+            stock_qty: v.stock_qty,
+          })),
         );
       } catch (err) {
         console.error("Error loading product:", err);
@@ -106,6 +125,14 @@ export default function EditProductPage({ params }: ProductPageProps) {
       const [productResult, collectionsResult] = await Promise.all([
         updateProduct(params.id, updates),
         updateProductCollections(params.id, selectedCollections),
+        saveProductVariants(
+          params.id,
+          variants.map((v) => ({
+            size: v.size,
+            stock_qty: v.stock_qty,
+            sku: `${formData.sku_prefix}-${v.size}`,
+          })),
+        ),
       ]);
 
       if (productResult.success && collectionsResult.success) {
