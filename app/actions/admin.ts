@@ -586,3 +586,33 @@ export async function updateProductCollections(
 
   return { error: null, success: true };
 }
+
+export async function saveProductVariants(
+  productId: string,
+  variants: { size: string; stock_qty: number; sku: string }[],
+) {
+  const adminId = await requireAdmin();
+  if (!adminId) return { error: "Unauthorized", success: false };
+
+  const adminClient = getServiceSupabase();
+
+  await adminClient
+    .from("product_variants")
+    .delete()
+    .eq("product_id", productId);
+
+  if (variants.length === 0) return { error: null, success: true };
+
+  const rows = variants.map((v) => ({
+    product_id: productId,
+    size: v.size,
+    stock_qty: v.stock_qty,
+    sku: v.sku,
+    price: 0,
+    is_active: true,
+  }));
+
+  const { error } = await adminClient.from("product_variants").insert(rows);
+  if (error) return { error: error.message, success: false };
+  return { error: null, success: true };
+}
