@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, X } from "lucide-react";
 import Link from "next/link";
-import { createProduct } from "@/app/actions/admin";
+import { createProduct, saveProductVariants } from "@/app/actions/admin";
 
 const COLLECTIONS = [
   { id: "91df8360-bd18-44a4-b8c8-4144c68982f7", name: "Summer Collection" },
@@ -15,6 +15,13 @@ const COLLECTIONS = [
   { id: "dbe72a73-8e45-4e07-a9ab-2af7c4620778", name: "New Arrivals" },
 ];
 
+const ALL_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
+
+interface VariantRow {
+  size: string;
+  stock_qty: number;
+}
+
 export default function NewProductPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -22,6 +29,7 @@ export default function NewProductPage() {
   const [selectedCollections, setSelectedCollections] = useState<string[]>([
     "dbe72a73-8e45-4e07-a9ab-2af7c4620778",
   ]);
+  const [variants, setVariants] = useState<VariantRow[]>([]);
   const [formData, setFormData] = useState({
     name: "",
     slug: "",
@@ -75,11 +83,31 @@ export default function NewProductPage() {
     );
   };
 
+  const addVariant = (size: string) => {
+    if (variants.find((v) => v.size === size)) return;
+    setVariants((prev) => [...prev, { size, stock_qty: 0 }]);
+  };
+
+  const removeVariant = (size: string) => {
+    setVariants((prev) => prev.filter((v) => v.size !== size));
+  };
+
+  const updateVariantStock = (size: string, stock_qty: number) => {
+    setVariants((prev) =>
+      prev.map((v) => (v.size === size ? { ...v, stock_qty } : v)),
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      const totalStock =
+        variants.length > 0
+          ? variants.reduce((s, v) => s + v.stock_qty, 0)
+          : parseInt(formData.total_stock) || 0;
+
       const productData = {
         ...formData,
         category_id: formData.category_id || null,
@@ -88,20 +116,33 @@ export default function NewProductPage() {
           ? parseFloat(formData.sale_price)
           : null,
         cost_price: parseFloat(formData.cost_price) || 0,
-        total_stock: parseInt(formData.total_stock) || 0,
+        total_stock: totalStock,
         is_active: formData.status === "active",
       };
 
       const result = await createProduct(productData, selectedCollections);
-      if (result.success) {
-        router.push("/admin/products");
+      if (!result.success || !result.id) return;
+
+      if (variants.length > 0) {
+        const variantRows = variants.map((v) => ({
+          size: v.size,
+          stock_qty: v.stock_qty,
+          sku: `${formData.sku_prefix}-${v.size}`,
+        }));
+        await saveProductVariants(result.id, variantRows);
       }
+
+      router.push("/admin/products");
     } catch (err: any) {
       console.error("Error creating product:", err);
     } finally {
       setLoading(false);
     }
   };
+
+  const availableSizes = ALL_SIZES.filter(
+    (s) => !variants.find((v) => v.size === s),
+  );
 
   return (
     <div>
@@ -229,17 +270,13 @@ export default function NewProductPage() {
               Collections
             </h2>
             <p className="text-xs text-muted-foreground mb-3">
-              Product টি যে collections এ থাকবে সেগুলো select করো
+              Select the collections this product belongs to
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {COLLECTIONS.map((col) => (
                 <label
                   key={col.id}
-                  className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors text-sm font-medium ${
-                    selectedCollections.includes(col.id)
-                      ? "border-foreground bg-foreground/5 text-foreground"
-                      : "border-border text-muted-foreground hover:border-foreground/40"
-                  }`}
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors text-sm font-medium ${selectedCollections.includes(col.id) ? "border-foreground bg-foreground/5 text-foreground" : "border-border text-muted-foreground hover:border-foreground/40"}`}
                 >
                   <input
                     type="checkbox"
@@ -248,11 +285,7 @@ export default function NewProductPage() {
                     className="hidden"
                   />
                   <span
-                    className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
-                      selectedCollections.includes(col.id)
-                        ? "bg-foreground border-foreground"
-                        : "border-border"
-                    }`}
+                    className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selectedCollections.includes(col.id) ? "bg-foreground border-foreground" : "border-border"}`}
                   >
                     {selectedCollections.includes(col.id) && (
                       <svg
@@ -332,6 +365,89 @@ export default function NewProductPage() {
 
           <div className="border-t border-border" />
 
+          {/* Variants / Sizes */}
+          <div>
+            <h2 className="text-sm font-semibold text-foreground mb-1">
+              Sizes & Stock
+            </h2>
+            <p className="text-xs text-muted-foreground mb-3">
+              Add available sizes and their stock quantities
+            </p>
+
+            {variants.length > 0 && (
+              <div className="space-y-2 mb-3">
+                {variants.map((v) => (
+                  <div
+                    key={v.size}
+                    className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg border border-border"
+                  >
+                    <span className="text-sm font-bold text-foreground w-12">
+                      {v.size}
+                    </span>
+                    <div className="flex-1">
+                      <input
+                        type="number"
+                        value={v.stock_qty}
+                        onChange={(e) =>
+                          updateVariantStock(
+                            v.size,
+                            parseInt(e.target.value) || 0,
+                          )
+                        }
+                        placeholder="Stock qty"
+                        min="0"
+                        className="input-field"
+                      />
+                    </div>
+                    <span className="text-xs text-muted-foreground">units</span>
+                    <button
+                      type="button"
+                      onClick={() => removeVariant(v.size)}
+                      className="text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {availableSizes.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {availableSizes.map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => addVariant(size)}
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold border border-dashed border-border rounded-md text-muted-foreground hover:border-foreground hover:text-foreground transition-colors"
+                  >
+                    <Plus size={12} /> {size}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {variants.length === 0 && (
+              <div className="mt-3">
+                <div className="border-t border-border pt-3">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                    Total Stock (if no sizes)
+                  </label>
+                  <input
+                    type="number"
+                    name="total_stock"
+                    value={formData.total_stock}
+                    onChange={handleChange}
+                    placeholder="0"
+                    className="input-field max-w-[150px]"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-border" />
+
           {/* Product Details */}
           <div>
             <h2 className="text-sm font-semibold text-foreground mb-4">
@@ -361,20 +477,6 @@ export default function NewProductPage() {
                   value={formData.material}
                   onChange={handleChange}
                   placeholder="e.g. Cotton"
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                  Stock Quantity
-                </label>
-                <input
-                  type="number"
-                  name="total_stock"
-                  value={formData.total_stock}
-                  onChange={handleChange}
-                  placeholder="0"
-                  required
                   className="input-field"
                 />
               </div>
@@ -431,7 +533,6 @@ export default function NewProductPage() {
 
           <div className="border-t border-border" />
 
-          {/* Actions */}
           <div className="flex gap-3 justify-end">
             <Link
               href="/admin/products"
