@@ -78,7 +78,7 @@ export async function getCartWithItems() {
 
 export async function addToCart(
   productId: string,
-  variantId: string,
+  variantId: string | null,
   quantity: number = 1,
 ): Promise<ApiResponse> {
   const userId = await getServerUserId();
@@ -103,31 +103,48 @@ export async function addToCart(
     cart = newCart;
   }
 
-  const { data: variant } = await sb
-    .from("product_variants")
-    .select("price, sale_price, stock_qty")
-    .eq("id", variantId)
-    .maybeSingle();
+  let unitPrice = 0;
 
-  if (!variant)
-    return { data: null, error: "Variant not found", success: false };
-  if (variant.stock_qty < quantity)
-    return { data: null, error: "Insufficient stock", success: false };
+  if (variantId) {
+    const { data: variant } = await sb
+      .from("product_variants")
+      .select("price, sale_price, stock_qty")
+      .eq("id", variantId)
+      .maybeSingle();
 
-  const unitPrice = variant.sale_price ?? variant.price;
+    if (!variant)
+      return { data: null, error: "Variant not found", success: false };
+    if (variant.stock_qty < quantity)
+      return { data: null, error: "Insufficient stock", success: false };
 
-  const { error } = await sb
-    .from("cart_items")
-    .upsert(
-      {
-        cart_id: cart.id,
-        product_id: productId,
-        variant_id: variantId,
-        quantity,
-        unit_price: unitPrice,
-      },
-      { onConflict: "cart_id,variant_id" },
-    );
+    unitPrice = variant.sale_price ?? variant.price;
+  } else {
+    const { data: product } = await sb
+      .from("products")
+      .select("base_price, sale_price, total_stock")
+      .eq("id", productId)
+      .maybeSingle();
+
+    if (!product)
+      return { data: null, error: "Product not found", success: false };
+    if (product.total_stock < quantity)
+      return { data: null, error: "Insufficient stock", success: false };
+
+    unitPrice = product.sale_price ?? product.base_price;
+  }
+
+  const conflictCol = variantId ? "cart_id,variant_id" : "cart_id,product_id";
+
+  const { error } = await sb.from("cart_items").upsert(
+    {
+      cart_id: cart.id,
+      product_id: productId,
+      variant_id: variantId ?? null,
+      quantity,
+      unit_price: unitPrice,
+    },
+    { onConflict: conflictCol },
+  );
 
   if (error) return { data: null, error: error.message, success: false };
   return { data: null, error: null, success: true };

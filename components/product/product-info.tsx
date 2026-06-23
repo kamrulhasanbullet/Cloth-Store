@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ShoppingBag,
   Heart,
@@ -10,6 +11,7 @@ import {
   Shield,
   RefreshCw,
   ChevronDown,
+  Loader2,
 } from "lucide-react";
 import {
   cn,
@@ -20,6 +22,7 @@ import {
 } from "@/lib/utils";
 import type { Product, ProductVariant } from "@/lib/types";
 import { toggleWishlist } from "@/app/actions/wishlist";
+import { addToCart } from "@/app/actions/cart";
 
 interface ProductInfoProps {
   product: Product;
@@ -59,6 +62,7 @@ export function ProductInfo({
   product,
   initialWishlisted = false,
 }: ProductInfoProps) {
+  const router = useRouter();
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
     product.variants?.find((v) => v.is_active && v.stock_qty > 0) ??
       product.variants?.[0] ??
@@ -66,9 +70,13 @@ export function ProductInfo({
   );
   const [quantity, setQuantity] = useState(1);
   const [isWishlisted, setIsWishlisted] = useState(initialWishlisted);
+  const [cartLoading, setCartLoading] = useState(false);
+  const [buyLoading, setBuyLoading] = useState(false);
+  const [cartMsg, setCartMsg] = useState<string | null>(null);
 
   const allSizes = product.variants?.map((v) => v.size) ?? [];
   const sizes = allSizes.filter((s, i) => allSizes.indexOf(s) === i);
+
   const colorEntries: { color: string; hex: string }[] = [];
   const seenColors = new Set<string>();
   for (const v of product.variants ?? []) {
@@ -77,7 +85,6 @@ export function ProductInfo({
       colorEntries.push({ color: v.color, hex: v.color_hex });
     }
   }
-  const colors = colorEntries;
 
   const activeVariantsBySizeAndColor = (size: string, color?: string) =>
     product.variants?.find(
@@ -112,9 +119,46 @@ export function ProductInfo({
     out_of_stock: "Out of Stock",
   };
 
+  const hasVariants = (product.variants?.length ?? 0) > 0;
+
+  const handleAddToCart = async (redirect = false) => {
+    if (hasVariants && !selectedVariant) {
+      setCartMsg("Please select a size");
+      return;
+    }
+
+    if (redirect) setBuyLoading(true);
+    else setCartLoading(true);
+    setCartMsg(null);
+
+    try {
+      const result = await addToCart(
+        product.id,
+        selectedVariant?.id ?? null,
+        quantity,
+      );
+
+      if (!result.success) {
+        setCartMsg(result.error ?? "Failed to add to cart");
+        return;
+      }
+
+      if (redirect) {
+        router.push("/checkout");
+      } else {
+        setCartMsg("Added to cart!");
+        setTimeout(() => setCartMsg(null), 2000);
+      }
+    } catch {
+      setCartMsg("Something went wrong");
+    } finally {
+      setCartLoading(false);
+      setBuyLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Breadcrumb category */}
       {product.category && (
         <p className="text-accent text-xs font-semibold uppercase tracking-widest">
           {product.category.name}
@@ -170,7 +214,6 @@ export function ProductInfo({
         )}
       </div>
 
-      {/* Short description */}
       {product.short_desc && (
         <p className="text-muted-foreground text-sm leading-relaxed">
           {product.short_desc}
@@ -178,7 +221,7 @@ export function ProductInfo({
       )}
 
       {/* Color selector */}
-      {colors.length > 0 && (
+      {colorEntries.length > 0 && (
         <div>
           <p className="text-sm font-semibold text-foreground mb-3">
             Color:{" "}
@@ -187,7 +230,7 @@ export function ProductInfo({
             </span>
           </p>
           <div className="flex gap-2 flex-wrap">
-            {colors.map(({ color, hex }) => (
+            {colorEntries.map(({ color, hex }) => (
               <button
                 key={color}
                 onClick={() => {
@@ -218,7 +261,7 @@ export function ProductInfo({
             <p className="text-sm font-semibold text-foreground">
               Size:{" "}
               <span className="font-normal text-muted-foreground">
-                {selectedVariant?.size ?? "Select"}
+                {selectedVariant?.size ?? "Select a size"}
               </span>
             </p>
             <button className="text-xs text-accent hover:underline">
@@ -239,7 +282,7 @@ export function ProductInfo({
                   onClick={() => variant && setSelectedVariant(variant)}
                   disabled={outOfStock}
                   className={cn(
-                    "px-4 py-2 text-sm font-semibold border rounded-md transition-all relative",
+                    "px-4 py-2 text-sm font-semibold border rounded-md transition-all",
                     isSelected && !outOfStock
                       ? "border-foreground bg-foreground text-background"
                       : "",
@@ -264,7 +307,21 @@ export function ProductInfo({
         {stockLabels[stockStatus]}
       </p>
 
-      {/* Quantity + CTA */}
+      {/* Cart message */}
+      {cartMsg && (
+        <p
+          className={cn(
+            "text-sm font-medium px-3 py-2 rounded-md",
+            cartMsg === "Added to cart!"
+              ? "bg-emerald-50 text-emerald-600"
+              : "bg-red-50 text-red-600",
+          )}
+        >
+          {cartMsg}
+        </p>
+      )}
+
+      {/* Quantity + Add to Cart */}
       <div className="flex items-center gap-3 pt-2">
         <div className="flex items-center border border-border rounded-md overflow-hidden">
           <button
@@ -288,7 +345,8 @@ export function ProductInfo({
           </button>
         </div>
         <button
-          disabled={stockStatus === "out_of_stock"}
+          onClick={() => handleAddToCart(false)}
+          disabled={stockStatus === "out_of_stock" || cartLoading}
           className={cn(
             "flex-1 flex items-center justify-center gap-2 py-3 rounded-md text-sm font-semibold tracking-wide transition-all active:scale-95",
             stockStatus !== "out_of_stock"
@@ -296,7 +354,11 @@ export function ProductInfo({
               : "bg-muted text-muted-foreground cursor-not-allowed",
           )}
         >
-          <ShoppingBag size={18} />
+          {cartLoading ? (
+            <Loader2 size={18} className="animate-spin" />
+          ) : (
+            <ShoppingBag size={18} />
+          )}
           {stockStatus === "out_of_stock" ? "Out of Stock" : "Add to Cart"}
         </button>
         <button
@@ -314,15 +376,19 @@ export function ProductInfo({
               ? "border-red-300 bg-red-50 text-red-500"
               : "border-border text-muted-foreground hover:border-foreground hover:text-foreground",
           )}
-          aria-label="Add to wishlist"
         >
           <Heart size={18} className={cn(isWishlisted && "fill-current")} />
         </button>
       </div>
 
-      {/* Buy now */}
+      {/* Buy Now */}
       {stockStatus !== "out_of_stock" && (
-        <button className="w-full py-3 border-2 border-foreground text-foreground text-sm font-semibold rounded-md hover:bg-foreground hover:text-background transition-all active:scale-95">
+        <button
+          onClick={() => handleAddToCart(true)}
+          disabled={buyLoading}
+          className="w-full flex items-center justify-center gap-2 py-3 border-2 border-foreground text-foreground text-sm font-semibold rounded-md hover:bg-foreground hover:text-background transition-all active:scale-95 disabled:opacity-50"
+        >
+          {buyLoading && <Loader2 size={16} className="animate-spin" />}
           Buy Now
         </button>
       )}
@@ -372,7 +438,6 @@ export function ProductInfo({
         </AccordionItem>
       </div>
 
-      {/* Share */}
       <div className="flex items-center gap-2 pt-2">
         <Share2 size={14} className="text-muted-foreground" />
         <span className="text-xs text-muted-foreground">
