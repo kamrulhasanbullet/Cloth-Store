@@ -2,8 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, AlertCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  Loader2,
+  AlertCircle,
+  Plus,
+  X,
+  Upload,
+  Star,
+} from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   saveProductVariants,
   updateProduct,
@@ -19,8 +28,19 @@ const COLLECTIONS = [
   { id: "dbe72a73-8e45-4e07-a9ab-2af7c4620778", name: "New Arrivals" },
 ];
 
+const ALL_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
+
 interface ProductPageProps {
   params: { id: string };
+}
+
+interface ImageRow {
+  id?: string;
+  url: string;
+  cloudinary_id: string;
+  is_primary: boolean;
+  sort_order: number;
+  color_tag?: string;
 }
 
 export default function EditProductPage({ params }: ProductPageProps) {
@@ -33,24 +53,32 @@ export default function EditProductPage({ params }: ProductPageProps) {
   const [variants, setVariants] = useState<
     { size: string; stock_qty: number; id?: string }[]
   >([]);
+  const [images, setImages] = useState<ImageRow[]>([]);
+  const [uploadingImg, setUploadingImg] = useState(false);
 
   useEffect(() => {
     const loadProduct = async () => {
       try {
         const { supabase } = await import("@/lib/supabase");
 
-        const [productRes, collectionsRes, variantsRes] = await Promise.all([
-          supabase.from("products").select("*").eq("id", params.id).single(),
-          supabase
-            .from("product_collections")
-            .select("collection_id")
-            .eq("product_id", params.id),
-          supabase
-            .from("product_variants")
-            .select("id, size, stock_qty")
-            .eq("product_id", params.id)
-            .eq("is_active", true),
-        ]);
+        const [productRes, collectionsRes, variantsRes, imagesRes] =
+          await Promise.all([
+            supabase.from("products").select("*").eq("id", params.id).single(),
+            supabase
+              .from("product_collections")
+              .select("collection_id")
+              .eq("product_id", params.id),
+            supabase
+              .from("product_variants")
+              .select("id, size, stock_qty")
+              .eq("product_id", params.id)
+              .eq("is_active", true),
+            supabase
+              .from("product_images")
+              .select("*")
+              .eq("product_id", params.id)
+              .order("sort_order"),
+          ]);
 
         if (productRes.error) throw productRes.error;
         setProduct(productRes.data);
@@ -65,13 +93,22 @@ export default function EditProductPage({ params }: ProductPageProps) {
             stock_qty: v.stock_qty,
           })),
         );
+        setImages(
+          (imagesRes.data ?? []).map((img: any) => ({
+            id: img.id,
+            url: img.url,
+            cloudinary_id: img.cloudinary_id,
+            is_primary: img.is_primary,
+            sort_order: img.sort_order,
+            color_tag: img.color_tag ?? "",
+          })),
+        );
       } catch (err) {
         console.error("Error loading product:", err);
       } finally {
         setLoading(false);
       }
     };
-
     loadProduct();
   }, [params.id]);
 
@@ -81,8 +118,7 @@ export default function EditProductPage({ params }: ProductPageProps) {
     >,
   ) => {
     const { name, type, value } = e.target;
-    const checked =
-      e.target instanceof HTMLInputElement ? e.target.checked : false;
+    const checked = (e.target as HTMLInputElement).checked;
     setFormData((prev: any) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
@@ -95,11 +131,87 @@ export default function EditProductPage({ params }: ProductPageProps) {
     );
   };
 
+  const addVariant = (size: string) => {
+    if (variants.find((v) => v.size === size)) return;
+    setVariants((prev) => [...prev, { size, stock_qty: 0 }]);
+  };
+
+  const removeVariant = (size: string) => {
+    setVariants((prev) => prev.filter((v) => v.size !== size));
+  };
+
+  const updateVariantStock = (size: string, stock_qty: number) => {
+    setVariants((prev) =>
+      prev.map((v) => (v.size === size ? { ...v, stock_qty } : v)),
+    );
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    setUploadingImg(true);
+
+    try {
+      for (const file of files) {
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch("/api/upload", { method: "POST", body: fd });
+        const data = await res.json();
+        if (data.url) {
+          setImages((prev) => [
+            ...prev,
+            {
+              url: data.url,
+              cloudinary_id: data.cloudinary_id,
+              is_primary: prev.length === 0,
+              sort_order: prev.length,
+              color_tag: "",
+            },
+          ]);
+        }
+      }
+    } catch (err) {
+      console.error("Upload error:", err);
+    } finally {
+      setUploadingImg(false);
+      e.target.value = "";
+    }
+  };
+
+  const setPrimary = (index: number) => {
+    setImages((prev) =>
+      prev.map((img, i) => ({ ...img, is_primary: i === index })),
+    );
+  };
+
+  const removeImage = (index: number) => {
+    setImages((prev) => {
+      const updated = prev.filter((_, i) => i !== index);
+      if (updated.length > 0 && !updated.some((img) => img.is_primary)) {
+        updated[0].is_primary = true;
+      }
+      return updated.map((img, i) => ({ ...img, sort_order: i }));
+    });
+  };
+
+  const updateColorTag = (index: number, color_tag: string) => {
+    setImages((prev) =>
+      prev.map((img, i) => (i === index ? { ...img, color_tag } : img)),
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
 
     try {
+      const { supabase } = await import("@/lib/supabase");
+
+      const totalStock =
+        variants.length > 0
+          ? variants.reduce((s, v) => s + v.stock_qty, 0)
+          : parseInt(formData.total_stock) || 0;
+
       const updates = {
         name: formData.name,
         slug: formData.slug,
@@ -114,7 +226,7 @@ export default function EditProductPage({ params }: ProductPageProps) {
         brand: formData.brand,
         material: formData.material,
         care_instructions: formData.care_instructions,
-        total_stock: parseInt(formData.total_stock),
+        total_stock: totalStock,
         status: formData.status,
         is_active: formData.status === "active",
         is_featured: formData.is_featured,
@@ -122,28 +234,49 @@ export default function EditProductPage({ params }: ProductPageProps) {
         is_best_seller: formData.is_best_seller,
       };
 
-      const [productResult, collectionsResult] = await Promise.all([
+      const variantRows = variants.map((v) => ({
+        size: v.size,
+        stock_qty: v.stock_qty,
+        sku: `${formData.sku_prefix || "SKU"}-${v.size}`,
+      }));
+
+      // Save product, collections, variants
+      await Promise.all([
         updateProduct(params.id, updates),
         updateProductCollections(params.id, selectedCollections),
-        saveProductVariants(
-          params.id,
-          variants.map((v) => ({
-            size: v.size,
-            stock_qty: v.stock_qty,
-            sku: `${formData.sku_prefix}-${v.size}`,
-          })),
-        ),
+        saveProductVariants(params.id, variantRows),
       ]);
 
-      if (productResult.success && collectionsResult.success) {
-        router.push("/admin/products");
+      // Save images — delete old, insert new
+      await supabase
+        .from("product_images")
+        .delete()
+        .eq("product_id", params.id);
+
+      if (images.length > 0) {
+        await supabase.from("product_images").insert(
+          images.map((img, i) => ({
+            product_id: params.id,
+            url: img.url,
+            cloudinary_id: img.cloudinary_id,
+            is_primary: img.is_primary,
+            sort_order: i,
+            alt_text: formData.name,
+          })),
+        );
       }
+
+      router.push("/admin/products");
     } catch (err: any) {
       console.error("Error updating product:", err);
     } finally {
       setSaving(false);
     }
   };
+
+  const availableSizes = ALL_SIZES.filter(
+    (s) => !variants.find((v) => v.size === s),
+  );
 
   if (loading) {
     return (
@@ -263,6 +396,92 @@ export default function EditProductPage({ params }: ProductPageProps) {
 
           <div className="border-t border-border" />
 
+          {/* Images */}
+          <div>
+            <h2 className="text-sm font-semibold text-foreground mb-1">
+              Product Images
+            </h2>
+            <p className="text-xs text-muted-foreground mb-3">
+              Upload images. First image or starred image will be primary.
+            </p>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+              {images.map((img, i) => (
+                <div
+                  key={i}
+                  className="relative group rounded-lg overflow-hidden border border-border bg-muted aspect-square"
+                >
+                  <Image
+                    src={img.url}
+                    alt=""
+                    fill
+                    className="object-cover"
+                    sizes="150px"
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPrimary(i)}
+                      className={`p-1.5 rounded-full transition-colors ${img.is_primary ? "bg-amber-400 text-white" : "bg-white/20 text-white hover:bg-amber-400"}`}
+                      title="Set as primary"
+                    >
+                      <Star
+                        size={14}
+                        className={img.is_primary ? "fill-current" : ""}
+                      />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeImage(i)}
+                      className="p-1.5 rounded-full bg-white/20 text-white hover:bg-destructive transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  {img.is_primary && (
+                    <div className="absolute top-2 left-2 bg-amber-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                      Primary
+                    </div>
+                  )}
+                  <input
+                    type="text"
+                    value={img.color_tag ?? ""}
+                    onChange={(e) => updateColorTag(i, e.target.value)}
+                    placeholder="Color tag (optional)"
+                    className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs px-2 py-1 placeholder:text-white/50 border-none outline-none"
+                  />
+                </div>
+              ))}
+
+              {/* Upload button */}
+              <label className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer hover:border-foreground transition-colors bg-secondary/20">
+                {uploadingImg ? (
+                  <Loader2
+                    size={20}
+                    className="animate-spin text-muted-foreground"
+                  />
+                ) : (
+                  <>
+                    <Upload size={20} className="text-muted-foreground mb-1" />
+                    <span className="text-xs text-muted-foreground">
+                      Upload
+                    </span>
+                  </>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  disabled={uploadingImg}
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="border-t border-border" />
+
           {/* Collections */}
           <div>
             <h2 className="text-sm font-semibold text-foreground mb-1">
@@ -275,11 +494,7 @@ export default function EditProductPage({ params }: ProductPageProps) {
               {COLLECTIONS.map((col) => (
                 <label
                   key={col.id}
-                  className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors text-sm font-medium ${
-                    selectedCollections.includes(col.id)
-                      ? "border-foreground bg-foreground/5 text-foreground"
-                      : "border-border text-muted-foreground hover:border-foreground/40"
-                  }`}
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors text-sm font-medium ${selectedCollections.includes(col.id) ? "border-foreground bg-foreground/5 text-foreground" : "border-border text-muted-foreground hover:border-foreground/40"}`}
                 >
                   <input
                     type="checkbox"
@@ -288,11 +503,7 @@ export default function EditProductPage({ params }: ProductPageProps) {
                     className="hidden"
                   />
                   <span
-                    className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
-                      selectedCollections.includes(col.id)
-                        ? "bg-foreground border-foreground"
-                        : "border-border"
-                    }`}
+                    className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${selectedCollections.includes(col.id) ? "bg-foreground border-foreground" : "border-border"}`}
                   >
                     {selectedCollections.includes(col.id) && (
                       <svg
@@ -368,6 +579,86 @@ export default function EditProductPage({ params }: ProductPageProps) {
 
           <div className="border-t border-border" />
 
+          {/* Sizes & Stock */}
+          <div>
+            <h2 className="text-sm font-semibold text-foreground mb-1">
+              Sizes & Stock
+            </h2>
+            <p className="text-xs text-muted-foreground mb-3">
+              Add available sizes and their stock quantities
+            </p>
+
+            {variants.length > 0 && (
+              <div className="space-y-2 mb-3">
+                {variants.map((v) => (
+                  <div
+                    key={v.size}
+                    className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg border border-border"
+                  >
+                    <span className="text-sm font-bold text-foreground w-12">
+                      {v.size}
+                    </span>
+                    <div className="flex-1">
+                      <input
+                        type="number"
+                        value={v.stock_qty}
+                        onChange={(e) =>
+                          updateVariantStock(
+                            v.size,
+                            parseInt(e.target.value) || 0,
+                          )
+                        }
+                        placeholder="Stock qty"
+                        min="0"
+                        className="input-field"
+                      />
+                    </div>
+                    <span className="text-xs text-muted-foreground">units</span>
+                    <button
+                      type="button"
+                      onClick={() => removeVariant(v.size)}
+                      className="text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {availableSizes.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {availableSizes.map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => addVariant(size)}
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold border border-dashed border-border rounded-md text-muted-foreground hover:border-foreground hover:text-foreground transition-colors"
+                  >
+                    <Plus size={12} /> {size}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {variants.length === 0 && (
+              <div className="mt-3 pt-3 border-t border-border">
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                  Total Stock (if no sizes)
+                </label>
+                <input
+                  type="number"
+                  name="total_stock"
+                  value={formData?.total_stock || ""}
+                  onChange={handleChange}
+                  className="input-field max-w-[150px]"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-border" />
+
           {/* Product Details */}
           <div>
             <h2 className="text-sm font-semibold text-foreground mb-4">
@@ -394,18 +685,6 @@ export default function EditProductPage({ params }: ProductPageProps) {
                   type="text"
                   name="material"
                   value={formData?.material || ""}
-                  onChange={handleChange}
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                  Stock Quantity
-                </label>
-                <input
-                  type="number"
-                  name="total_stock"
-                  value={formData?.total_stock || ""}
                   onChange={handleChange}
                   className="input-field"
                 />

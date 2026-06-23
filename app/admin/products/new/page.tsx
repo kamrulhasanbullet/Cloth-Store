@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Plus, X } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, X, Upload, Star } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { createProduct, saveProductVariants } from "@/app/actions/admin";
 
 const COLLECTIONS = [
@@ -22,6 +23,14 @@ interface VariantRow {
   stock_qty: number;
 }
 
+interface ImageRow {
+  url: string;
+  cloudinary_id: string;
+  is_primary: boolean;
+  sort_order: number;
+  color_tag: string;
+}
+
 export default function NewProductPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -30,6 +39,8 @@ export default function NewProductPage() {
     "dbe72a73-8e45-4e07-a9ab-2af7c4620778",
   ]);
   const [variants, setVariants] = useState<VariantRow[]>([]);
+  const [images, setImages] = useState<ImageRow[]>([]);
+  const [uploadingImg, setUploadingImg] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     slug: "",
@@ -69,12 +80,21 @@ export default function NewProductPage() {
     >,
   ) => {
     const { name, type, value } = e.target;
-    const checked =
-      e.target instanceof HTMLInputElement ? e.target.checked : false;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+    const checked = (e.target as HTMLInputElement).checked;
+    setFormData((prev) => {
+      const updated: any = {
+        ...prev,
+        [name]: type === "checkbox" ? checked : value,
+      };
+      if (name === "name") {
+        updated.slug = value
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, "")
+          .trim()
+          .replace(/\s+/g, "-");
+      }
+      return updated;
+    });
   };
 
   const toggleCollection = (id: string) => {
@@ -95,6 +115,60 @@ export default function NewProductPage() {
   const updateVariantStock = (size: string, stock_qty: number) => {
     setVariants((prev) =>
       prev.map((v) => (v.size === size ? { ...v, stock_qty } : v)),
+    );
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    setUploadingImg(true);
+
+    try {
+      for (const file of files) {
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch("/api/upload", { method: "POST", body: fd });
+        const data = await res.json();
+        if (data.url) {
+          setImages((prev) => [
+            ...prev,
+            {
+              url: data.url,
+              cloudinary_id: data.cloudinary_id,
+              is_primary: prev.length === 0,
+              sort_order: prev.length,
+              color_tag: "",
+            },
+          ]);
+        }
+      }
+    } catch (err) {
+      console.error("Upload error:", err);
+    } finally {
+      setUploadingImg(false);
+      e.target.value = "";
+    }
+  };
+
+  const setPrimary = (index: number) => {
+    setImages((prev) =>
+      prev.map((img, i) => ({ ...img, is_primary: i === index })),
+    );
+  };
+
+  const removeImage = (index: number) => {
+    setImages((prev) => {
+      const updated = prev.filter((_, i) => i !== index);
+      if (updated.length > 0 && !updated.some((img) => img.is_primary)) {
+        updated[0].is_primary = true;
+      }
+      return updated.map((img, i) => ({ ...img, sort_order: i }));
+    });
+  };
+
+  const updateColorTag = (index: number, color_tag: string) => {
+    setImages((prev) =>
+      prev.map((img, i) => (i === index ? { ...img, color_tag } : img)),
     );
   };
 
@@ -123,13 +197,32 @@ export default function NewProductPage() {
       const result = await createProduct(productData, selectedCollections);
       if (!result.success || !result.id) return;
 
+      const { supabase } = await import("@/lib/supabase");
+
+      // Save variants
       if (variants.length > 0) {
-        const variantRows = variants.map((v) => ({
-          size: v.size,
-          stock_qty: v.stock_qty,
-          sku: `${formData.sku_prefix}-${v.size}`,
-        }));
-        await saveProductVariants(result.id, variantRows);
+        await saveProductVariants(
+          result.id,
+          variants.map((v) => ({
+            size: v.size,
+            stock_qty: v.stock_qty,
+            sku: `${formData.sku_prefix || "SKU"}-${v.size}`,
+          })),
+        );
+      }
+
+      // Save images
+      if (images.length > 0) {
+        await supabase.from("product_images").insert(
+          images.map((img, i) => ({
+            product_id: result.id,
+            url: img.url,
+            cloudinary_id: img.cloudinary_id,
+            is_primary: img.is_primary,
+            sort_order: i,
+            alt_text: formData.name,
+          })),
+        );
       }
 
       router.push("/admin/products");
@@ -214,7 +307,7 @@ export default function NewProductPage() {
                     name="slug"
                     value={formData.slug}
                     onChange={handleChange}
-                    placeholder="premium-cotton-shirt"
+                    placeholder="auto-generated"
                     required
                     className="input-field"
                   />
@@ -259,6 +352,91 @@ export default function NewProductPage() {
                   className="input-field"
                 />
               </div>
+            </div>
+          </div>
+
+          <div className="border-t border-border" />
+
+          {/* Images */}
+          <div>
+            <h2 className="text-sm font-semibold text-foreground mb-1">
+              Product Images
+            </h2>
+            <p className="text-xs text-muted-foreground mb-3">
+              Upload images. First image will be primary. Add color tag for
+              color variants.
+            </p>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+              {images.map((img, i) => (
+                <div
+                  key={i}
+                  className="relative group rounded-lg overflow-hidden border border-border bg-muted aspect-square"
+                >
+                  <Image
+                    src={img.url}
+                    alt=""
+                    fill
+                    className="object-cover"
+                    sizes="150px"
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPrimary(i)}
+                      className={`p-1.5 rounded-full transition-colors ${img.is_primary ? "bg-amber-400 text-white" : "bg-white/20 text-white hover:bg-amber-400"}`}
+                    >
+                      <Star
+                        size={14}
+                        className={img.is_primary ? "fill-current" : ""}
+                      />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeImage(i)}
+                      className="p-1.5 rounded-full bg-white/20 text-white hover:bg-destructive transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  {img.is_primary && (
+                    <div className="absolute top-2 left-2 bg-amber-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                      Primary
+                    </div>
+                  )}
+                  <input
+                    type="text"
+                    value={img.color_tag}
+                    onChange={(e) => updateColorTag(i, e.target.value)}
+                    placeholder="Color tag"
+                    className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs px-2 py-1 placeholder:text-white/50 border-none outline-none"
+                  />
+                </div>
+              ))}
+
+              <label className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center cursor-pointer hover:border-foreground transition-colors bg-secondary/20">
+                {uploadingImg ? (
+                  <Loader2
+                    size={20}
+                    className="animate-spin text-muted-foreground"
+                  />
+                ) : (
+                  <>
+                    <Upload size={20} className="text-muted-foreground mb-1" />
+                    <span className="text-xs text-muted-foreground">
+                      Upload
+                    </span>
+                  </>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  disabled={uploadingImg}
+                />
+              </label>
             </div>
           </div>
 
@@ -365,7 +543,7 @@ export default function NewProductPage() {
 
           <div className="border-t border-border" />
 
-          {/* Variants / Sizes */}
+          {/* Sizes & Stock */}
           <div>
             <h2 className="text-sm font-semibold text-foreground mb-1">
               Sizes & Stock
@@ -428,20 +606,18 @@ export default function NewProductPage() {
             )}
 
             {variants.length === 0 && (
-              <div className="mt-3">
-                <div className="border-t border-border pt-3">
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                    Total Stock (if no sizes)
-                  </label>
-                  <input
-                    type="number"
-                    name="total_stock"
-                    value={formData.total_stock}
-                    onChange={handleChange}
-                    placeholder="0"
-                    className="input-field max-w-[150px]"
-                  />
-                </div>
+              <div className="mt-3 border-t border-border pt-3">
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                  Total Stock (if no sizes)
+                </label>
+                <input
+                  type="number"
+                  name="total_stock"
+                  value={formData.total_stock}
+                  onChange={handleChange}
+                  placeholder="0"
+                  className="input-field max-w-[150px]"
+                />
               </div>
             )}
           </div>
