@@ -3,12 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SlidersHorizontal, X, ChevronDown, ChevronUp } from "lucide-react";
-import {
-  cn,
-  formatPrice,
-  PRODUCT_SIZES_CLOTHING,
-  PRODUCT_SIZES_PANTS,
-} from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type { Category } from "@/lib/types";
 
 interface ShopFiltersProps {
@@ -23,7 +18,6 @@ const SORT_OPTIONS = [
   { value: "price_desc", label: "Price: High to Low" },
 ];
 
-const ALL_SIZES = [...PRODUCT_SIZES_CLOTHING, ...PRODUCT_SIZES_PANTS, "Free"];
 const PRICE_RANGES = [
   { label: "Under ৳500", min: 0, max: 500 },
   { label: "৳500 – ৳1,000", min: 500, max: 1000 },
@@ -64,7 +58,7 @@ export function ShopFilters({ categories }: ShopFiltersProps) {
     sort: params.get("sort") ?? "newest",
     min_price: params.get("min_price") ?? "",
     max_price: params.get("max_price") ?? "",
-    sizes: params.getAll("size"),
+    // sizes: params.getAll("size"),
     page: params.get("page") ?? "1",
     search: params.get("search") ?? "",
   };
@@ -89,7 +83,6 @@ export function ShopFilters({ categories }: ShopFiltersProps) {
     current.category ||
     current.min_price ||
     current.max_price ||
-    current.sizes.length > 0 ||
     current.search
   );
 
@@ -180,33 +173,6 @@ export function ShopFilters({ categories }: ShopFiltersProps) {
                   {r.label}
                 </span>
               </label>
-            );
-          })}
-        </div>
-      </FilterSection>
-
-      <FilterSection title="Size">
-        <div className="flex flex-wrap gap-2">
-          {ALL_SIZES.map((size) => {
-            const active = current.sizes.includes(size);
-            return (
-              <button
-                key={size}
-                onClick={() => {
-                  const newSizes = active
-                    ? current.sizes.filter((s) => s !== size)
-                    : [...current.sizes, size];
-                  update("size", newSizes);
-                }}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-semibold border rounded-md transition-all",
-                  active
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-border text-muted-foreground hover:border-foreground hover:text-foreground",
-                )}
-              >
-                {size}
-              </button>
             );
           })}
         </div>

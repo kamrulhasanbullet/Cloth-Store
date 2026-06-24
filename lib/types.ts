@@ -349,8 +349,6 @@ export interface ProductFilters {
   collection?: string;
   min_price?: number;
   max_price?: number;
-  sizes?: string[];
-  colors?: string[];
   sort?: "newest" | "price_asc" | "price_desc" | "popular" | "rating";
   search?: string;
   page?: number;

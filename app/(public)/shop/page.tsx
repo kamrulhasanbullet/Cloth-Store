@@ -25,7 +25,6 @@ interface ShopPageProps {
     sort?: string;
     min_price?: string;
     max_price?: string;
-    size?: string | string[];
     page?: string;
     featured?: string;
   };
@@ -33,11 +32,6 @@ interface ShopPageProps {
 
 export default async function ShopPage({ searchParams }: ShopPageProps) {
   const page = Math.max(1, parseInt(searchParams.page ?? "1") || 1);
-  const sizes = searchParams.size
-    ? Array.isArray(searchParams.size)
-      ? searchParams.size
-      : [searchParams.size]
-    : [];
 
   const filters: ProductFilters = {
     category: searchParams.category,
@@ -50,7 +44,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
     max_price: searchParams.max_price
       ? Number(searchParams.max_price)
       : undefined,
-    sizes,
+    // sizes,
     page,
     per_page: 12,
     is_featured: searchParams.featured === "true",
@@ -75,7 +69,6 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
     if (searchParams.sort) params.set("sort", searchParams.sort);
     if (searchParams.min_price) params.set("min_price", searchParams.min_price);
     if (searchParams.max_price) params.set("max_price", searchParams.max_price);
-    sizes.forEach((s) => params.append("size", s));
     params.set("page", String(p));
     return `/shop?${params.toString()}`;
   };
