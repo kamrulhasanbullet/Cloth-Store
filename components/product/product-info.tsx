@@ -93,12 +93,16 @@ export function ProductInfo({
     ) ?? null;
 
   const effectivePrice = selectedVariant
-    ? getEffectivePrice(selectedVariant.price, selectedVariant.sale_price)
+    ? getEffectivePrice(
+        selectedVariant.price || product.base_price,
+        selectedVariant.sale_price || product.sale_price,
+      )
     : getEffectivePrice(product.base_price, product.sale_price);
 
   const originalPrice = selectedVariant
-    ? selectedVariant.price
+    ? selectedVariant.price || product.base_price
     : product.base_price;
+
   const discount = getDiscountPercent(originalPrice, effectivePrice);
   const stockStatus = selectedVariant
     ? getStockStatus(

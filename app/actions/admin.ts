@@ -589,7 +589,7 @@ export async function updateProductCollections(
 
 export async function saveProductVariants(
   productId: string,
-  variants: { size: string; stock_qty: number; sku: string }[],
+  variants: { size: string; stock_qty: number; sku: string; price: number }[],
 ) {
   const adminId = await requireAdmin();
   if (!adminId) return { error: "Unauthorized", success: false };
@@ -608,7 +608,7 @@ export async function saveProductVariants(
     size: v.size,
     stock_qty: v.stock_qty,
     sku: v.sku,
-    price: 0,
+    price: v.price,
     is_active: true,
   }));
 

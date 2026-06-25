@@ -238,6 +238,7 @@ export default function EditProductPage({ params }: ProductPageProps) {
         size: v.size,
         stock_qty: v.stock_qty,
         sku: `${formData.sku_prefix || "SKU"}-${v.size}`,
+        price: parseFloat(formData.base_price) || 0,
       }));
 
       // Save product, collections, variants

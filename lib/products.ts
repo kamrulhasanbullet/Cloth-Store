@@ -9,7 +9,6 @@ export async function getProducts(
     collection,
     min_price,
     max_price,
-    sizes,
     sort = "newest",
     search,
     page = 1,
@@ -48,7 +47,7 @@ export async function getProducts(
       return { data: [], count: 0, page, per_page, total_pages: 0 };
     }
   }
-  
+
   if (min_price !== undefined) query = query.gte("base_price", min_price);
   if (max_price !== undefined) query = query.lte("base_price", max_price);
   if (is_featured) query = query.eq("is_featured", true);
