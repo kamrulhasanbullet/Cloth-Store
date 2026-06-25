@@ -117,7 +117,13 @@ export async function addToCart(
     if (variant.stock_qty < quantity)
       return { data: null, error: "Insufficient stock", success: false };
 
-    unitPrice = variant.sale_price ?? variant.price;
+    const { data: product } = await sb
+      .from("products")
+      .select("base_price, sale_price")
+      .eq("id", productId)
+      .maybeSingle();
+
+    unitPrice = product?.sale_price ?? product?.base_price ?? variant.price;
   } else {
     const { data: product } = await sb
       .from("products")
