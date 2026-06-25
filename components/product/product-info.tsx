@@ -23,6 +23,7 @@ import {
 import type { Product, ProductVariant } from "@/lib/types";
 import { toggleWishlist } from "@/app/actions/wishlist";
 import { addToCart } from "@/app/actions/cart";
+import { useCart } from "../cart/cart-provider";
 
 interface ProductInfoProps {
   product: Product;
@@ -73,6 +74,7 @@ export function ProductInfo({
   const [cartLoading, setCartLoading] = useState(false);
   const [buyLoading, setBuyLoading] = useState(false);
   const [cartMsg, setCartMsg] = useState<string | null>(null);
+  const { refreshCart } = useCart();
 
   const allSizes = product.variants?.map((v) => v.size) ?? [];
   const sizes = allSizes.filter((s, i) => allSizes.indexOf(s) === i);
@@ -151,6 +153,7 @@ export function ProductInfo({
         router.push("/checkout");
       } else {
         setCartMsg("Added to cart!");
+        refreshCart();
         setTimeout(() => setCartMsg(null), 2000);
       }
     } catch {

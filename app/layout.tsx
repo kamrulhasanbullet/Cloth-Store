@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { AuthProvider } from "@/components/auth/auth-provider";
+import { CartProvider } from "@/components/cart/cart-provider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -72,7 +73,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={cn(inter.variable, playfair.variable)}>
       <body className={cn("min-h-screen bg-background font-sans antialiased")}>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <CartProvider>{children}</CartProvider>
+        </AuthProvider>
       </body>
     </html>
   );

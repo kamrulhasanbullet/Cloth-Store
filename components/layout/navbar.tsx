@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
 import Image from "next/image";
+import { useCart } from "../cart/cart-provider";
 
 const NAV_LINKS = [
   { label: "Shop", href: "/shop" },
@@ -42,6 +43,7 @@ export function Navbar() {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const pathname = usePathname();
   const { user, profile, signOut } = useAuth();
+  const { itemCount } = useCart();
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 60);
@@ -167,9 +169,11 @@ export function Navbar() {
                 aria-label="Cart"
               >
                 <ShoppingBag size={20} />
-                <span className="absolute -top-0.5 -right-0.5 bg-accent text-accent-foreground text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                  0
-                </span>
+                {itemCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-accent text-accent-foreground text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                    {itemCount > 99 ? "99+" : itemCount}
+                  </span>
+                )}
               </Link>
 
               {user ? (
