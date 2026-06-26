@@ -38,7 +38,7 @@ export function ProductCard({
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
-  const { refreshCart } = useCart();
+  const { refreshCart, refreshWishlist } = useCart();
 
   const primaryImage =
     product.images?.find((img) => img.is_primary) ?? product.images?.[0];
@@ -216,6 +216,7 @@ export function ProductCard({
                 setIsWishlisted(!isWishlisted);
                 try {
                   await toggleWishlist(product.id);
+                  refreshWishlist();
                 } catch {
                   setIsWishlisted((prev) => !prev);
                 }

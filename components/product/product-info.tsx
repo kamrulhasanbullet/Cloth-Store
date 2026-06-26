@@ -74,7 +74,7 @@ export function ProductInfo({
   const [cartLoading, setCartLoading] = useState(false);
   const [buyLoading, setBuyLoading] = useState(false);
   const [cartMsg, setCartMsg] = useState<string | null>(null);
-  const { refreshCart } = useCart();
+  const { refreshCart, refreshWishlist } = useCart();
 
   const allSizes = product.variants?.map((v) => v.size) ?? [];
   const sizes = allSizes.filter((s, i) => allSizes.indexOf(s) === i);
@@ -373,6 +373,7 @@ export function ProductInfo({
             setIsWishlisted(!isWishlisted);
             try {
               await toggleWishlist(product.id);
+              refreshWishlist();
             } catch {
               setIsWishlisted((prev) => !prev);
             }

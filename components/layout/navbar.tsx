@@ -43,7 +43,7 @@ export function Navbar() {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const pathname = usePathname();
   const { user, profile, signOut } = useAuth();
-  const { itemCount } = useCart();
+  const { itemCount, wishlistCount } = useCart();
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 60);
@@ -158,10 +158,15 @@ export function Navbar() {
               </Link>
               <Link
                 href="/dashboard/wishlist"
-                className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors hidden sm:flex"
+                className="relative p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors hidden sm:flex"
                 aria-label="Wishlist"
               >
                 <Heart size={20} />
+                {wishlistCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                    {wishlistCount > 99 ? "99+" : wishlistCount}
+                  </span>
+                )}
               </Link>
               <Link
                 href="/cart"
