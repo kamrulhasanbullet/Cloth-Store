@@ -12,6 +12,7 @@ import {
   applyCoupon,
   removeCoupon,
 } from "@/app/actions/cart";
+import { useCart } from "@/components/cart/cart-provider";
 
 interface CartItemData {
   id: string;
@@ -33,6 +34,7 @@ export default function CartPage() {
   const [couponInput, setCouponInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const { refreshCart } = useCart();
 
   const loadCart = useCallback(async () => {
     try {
@@ -56,6 +58,7 @@ export default function CartPage() {
     setActionLoading(id);
     await updateCartItemQuantity(id, qty);
     setItems((p) => p.map((i) => (i.id === id ? { ...i, quantity: qty } : i)));
+    refreshCart();
     setActionLoading(null);
   };
 
@@ -63,6 +66,7 @@ export default function CartPage() {
     setActionLoading(id);
     await removeCartItem(id);
     setItems((p) => p.filter((i) => i.id !== id));
+    refreshCart();
     setActionLoading(null);
   };
 
