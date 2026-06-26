@@ -14,20 +14,24 @@ import { useAuth } from "@/components/auth/auth-provider";
 interface CartContextType {
   itemCount: number;
   wishlistCount: number;
+  wishlistIds: Set<string>;
   refreshCart: () => void;
   refreshWishlist: () => void;
+  toggleWishlistId: (productId: string, force?: boolean) => void;
 }
 
 const CartContext = createContext<CartContextType>({
   itemCount: 0,
   wishlistCount: 0,
+  wishlistIds: new Set(),
   refreshCart: () => {},
   refreshWishlist: () => {},
+  toggleWishlistId: () => {},
 });
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [itemCount, setItemCount] = useState(0);
-  const [wishlistCount, setWishlistCount] = useState(0);
+  const [wishlistIds, setWishlistIds] = useState<Set<string>>(new Set());
   const { user } = useAuth();
 
   const refreshCart = useCallback(async () => {
@@ -45,16 +49,26 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const refreshWishlist = useCallback(async () => {
     if (!user) {
-      setWishlistCount(0);
+      setWishlistIds(new Set());
       return;
     }
     try {
       const ids = await getWishlistProductIds();
-      setWishlistCount(ids.length);
+      setWishlistIds(new Set(ids));
     } catch {
-      setWishlistCount(0);
+      setWishlistIds(new Set());
     }
   }, [user]);
+
+  const toggleWishlistId = useCallback((productId: string, force?: boolean) => {
+    setWishlistIds((prev) => {
+      const next = new Set(prev);
+      const shouldAdd = force !== undefined ? force : !next.has(productId);
+      if (shouldAdd) next.add(productId);
+      else next.delete(productId);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     refreshCart();
@@ -63,7 +77,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <CartContext.Provider
-      value={{ itemCount, wishlistCount, refreshCart, refreshWishlist }}
+      value={{
+        itemCount,
+        wishlistCount: wishlistIds.size,
+        wishlistIds,
+        refreshCart,
+        refreshWishlist,
+        toggleWishlistId,
+      }}
     >
       {children}
     </CartContext.Provider>

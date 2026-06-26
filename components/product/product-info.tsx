@@ -370,20 +370,20 @@ export function ProductInfo({
         </button>
         <button
           onClick={async () => {
-            setIsWishlisted(!isWishlisted);
+            const optimistic = !isWishlisted;
+            setIsWishlisted(optimistic);
             try {
-              await toggleWishlist(product.id);
+              const result = await toggleWishlist(product.id);
+              if (result.success && result.data) {
+                setIsWishlisted(result.data.inWishlist);
+              } else {
+                setIsWishlisted(!optimistic);
+              }
               refreshWishlist();
             } catch {
-              setIsWishlisted((prev) => !prev);
+              setIsWishlisted(!optimistic);
             }
           }}
-          className={cn(
-            "w-12 h-12 border rounded-md flex items-center justify-center transition-all hover:scale-105",
-            isWishlisted
-              ? "border-red-300 bg-red-50 text-red-500"
-              : "border-border text-muted-foreground hover:border-foreground hover:text-foreground",
-          )}
         >
           <Heart size={18} className={cn(isWishlisted && "fill-current")} />
         </button>

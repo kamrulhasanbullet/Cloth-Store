@@ -29,16 +29,16 @@ export function ProductCard({
   product,
   className,
   priority = false,
-  initialWishlisted = false,
   darkMode = false,
 }: ProductCardProps) {
-  const [isWishlisted, setIsWishlisted] = useState(initialWishlisted);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [showSizePopup, setShowSizePopup] = useState(false);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
-  const { refreshCart, refreshWishlist } = useCart();
+  const { refreshCart, wishlistIds, toggleWishlistId } = useCart();
+
+  const isWishlisted = wishlistIds.has(product.id);
 
   const primaryImage =
     product.images?.find((img) => img.is_primary) ?? product.images?.[0];
@@ -89,6 +89,22 @@ export function ProductCard({
       }
     } finally {
       setAdding(false);
+    }
+  };
+
+  const handleWishlistToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    const willAdd = !isWishlisted;
+    toggleWishlistId(product.id, willAdd);
+    try {
+      const result = await toggleWishlist(product.id);
+      if (result.success && result.data) {
+        toggleWishlistId(product.id, result.data.inWishlist);
+      } else {
+        toggleWishlistId(product.id, !willAdd);
+      }
+    } catch {
+      toggleWishlistId(product.id, !willAdd);
     }
   };
 
@@ -211,16 +227,7 @@ export function ProductCard({
           {/* Quick actions */}
           <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
             <button
-              onClick={async (e) => {
-                e.preventDefault();
-                setIsWishlisted(!isWishlisted);
-                try {
-                  await toggleWishlist(product.id);
-                  refreshWishlist();
-                } catch {
-                  setIsWishlisted((prev) => !prev);
-                }
-              }}
+              onClick={handleWishlistToggle}
               className={cn(
                 "w-9 h-9 rounded-full flex items-center justify-center shadow-md transition-all duration-150 active:scale-90",
                 isWishlisted

@@ -7,11 +7,13 @@ import { Heart, Trash2, Loader2 } from "lucide-react";
 import { formatPrice, getEffectivePrice } from "@/lib/utils";
 import { getWishlistItems, toggleWishlist } from "@/app/actions/wishlist";
 import type { WishlistItem } from "@/lib/types";
+import { useCart } from "@/components/cart/cart-provider";
 
 export default function WishlistPage() {
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [removing, setRemoving] = useState<string | null>(null);
+  const { refreshWishlist } = useCart();
 
   const loadWishlist = useCallback(async () => {
     try {
@@ -30,8 +32,11 @@ export default function WishlistPage() {
 
   const handleRemove = async (productId: string, itemId: string) => {
     setRemoving(itemId);
-    await toggleWishlist(productId);
-    setItems((p) => p.filter((i) => i.id !== itemId));
+    const result = await toggleWishlist(productId);
+    if (result.success) {
+      setItems((prev) => prev.filter((i) => i.id !== itemId));
+      refreshWishlist();
+    }
     setRemoving(null);
   };
 
