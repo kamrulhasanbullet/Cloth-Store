@@ -8,6 +8,7 @@ import { getProducts } from "@/lib/products";
 import { ProductCard } from "@/components/product/product-card";
 import { ShopPagination } from "@/components/shop/shop-pagination";
 import { SortSelect } from "@/components/shop/sort-select";
+import { getWishlistProductIds } from "@/app/actions/wishlist";
 
 interface CollectionPageProps {
   params: { slug: string };
@@ -42,12 +43,16 @@ export default async function CollectionPage({
     | "price_desc"
     | "rating";
 
-  const { data: products, total_pages } = await getProducts({
-    collection: params.slug,
-    page,
-    per_page: 12,
-    sort,
-  });
+  const [{ data: products, total_pages }, wishlistProductIds] =
+    await Promise.all([
+      getProducts({
+        collection: params.slug,
+        page,
+        per_page: 12,
+        sort,
+      }),
+      getWishlistProductIds(),
+    ]);
 
   const buildPageUrl = (p: number) => {
     const sp = new URLSearchParams();
@@ -137,7 +142,12 @@ export default async function CollectionPage({
             <>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
                 {products.map((p, i) => (
-                  <ProductCard key={p.id} product={p} priority={i < 4} />
+                  <ProductCard
+                    key={p.id}
+                    product={p}
+                    priority={i < 4}
+                    initialWishlisted={wishlistProductIds.includes(p.id)}
+                  />
                 ))}
               </div>
               <ShopPagination
