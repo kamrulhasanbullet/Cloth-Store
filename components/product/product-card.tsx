@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Heart, ShoppingBag, Star, Eye } from "lucide-react";
+import { Heart, ShoppingBag, Star, Eye, X, Loader2 } from "lucide-react";
 import {
   cn,
   formatPrice,
@@ -14,6 +14,8 @@ import {
 } from "@/lib/utils";
 import type { Product } from "@/lib/types";
 import { toggleWishlist } from "@/app/actions/wishlist";
+import { addToCart } from "@/app/actions/cart";
+import { useCart } from "@/components/cart/cart-provider";
 
 interface ProductCardProps {
   product: Product;
@@ -32,6 +34,11 @@ export function ProductCard({
 }: ProductCardProps) {
   const [isWishlisted, setIsWishlisted] = useState(initialWishlisted);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [showSizePopup, setShowSizePopup] = useState(false);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [added, setAdded] = useState(false);
+  const { refreshCart } = useCart();
 
   const primaryImage =
     product.images?.find((img) => img.is_primary) ?? product.images?.[0];
@@ -41,10 +48,10 @@ export function ProductCard({
     product.sale_price,
   );
   const discountPct = getDiscountPercent(product.base_price, effectivePrice);
-  const totalStock =
-    product.variants && product.variants.length > 0
-      ? product.variants.reduce((sum, v) => sum + (v.stock_qty ?? 0), 0)
-      : product.total_stock;
+  const hasVariants = (product.variants?.length ?? 0) > 0;
+  const totalStock = hasVariants
+    ? product.variants!.reduce((sum, v) => sum + (v.stock_qty ?? 0), 0)
+    : product.total_stock;
   const isOutOfStock = totalStock === 0;
 
   const badgeText = product.is_flash_sale
@@ -61,12 +68,101 @@ export function ProductCard({
       ? "bg-emerald-500 text-white"
       : "bg-amber-500 text-white";
 
+  const handleQuickAdd = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (hasVariants) {
+      setShowSizePopup(true);
+    } else {
+      handleAddToCart(null);
+    }
+  };
+
+  const handleAddToCart = async (variantId: string | null) => {
+    setAdding(true);
+    try {
+      const result = await addToCart(product.id, variantId, 1);
+      if (result.success) {
+        setAdded(true);
+        setShowSizePopup(false);
+        refreshCart();
+        setTimeout(() => setAdded(false), 2000);
+      }
+    } finally {
+      setAdding(false);
+    }
+  };
+
   return (
     <div className={cn("group relative", className)}>
+      {/* Size popup */}
+      {showSizePopup && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40"
+          onClick={() => setShowSizePopup(false)}
+        >
+          <div
+            className="bg-background rounded-xl p-5 w-full max-w-xs shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-sm font-bold text-foreground line-clamp-1">
+                  {product.name}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {formatPrice(effectivePrice)}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSizePopup(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">
+              Select Size
+            </p>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {product.variants?.map((v) => {
+                const outOfStock = v.stock_qty === 0;
+                return (
+                  <button
+                    key={v.id}
+                    disabled={outOfStock}
+                    onClick={() => setSelectedSize(v.id)}
+                    className={cn(
+                      "px-3 py-1.5 text-sm font-semibold border rounded-md transition-all",
+                      selectedSize === v.id
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-border text-muted-foreground hover:border-foreground hover:text-foreground",
+                      outOfStock &&
+                        "opacity-40 cursor-not-allowed line-through",
+                    )}
+                  >
+                    {v.size}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => selectedSize && handleAddToCart(selectedSize)}
+              disabled={!selectedSize || adding}
+              className="w-full flex items-center justify-center gap-2 bg-foreground text-background py-2.5 rounded-md text-sm font-semibold disabled:opacity-50 transition-all"
+            >
+              {adding ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <ShoppingBag size={16} />
+              )}
+              Add to Cart
+            </button>
+          </div>
+        </div>
+      )}
+
       <Link href={`/products/${product.slug}`} className="block">
-        {/* Image container */}
         <div className="relative overflow-hidden rounded-xl bg-muted aspect-product">
-          {/* Primary image */}
           <Image
             src={getImageUrl(primaryImage?.url ?? "", 600)}
             alt={primaryImage?.alt_text || product.name}
@@ -81,7 +177,6 @@ export function ProductCard({
             priority={priority}
           />
 
-          {/* Hover image */}
           {hoverImage && (
             <Image
               src={getImageUrl(hoverImage.url, 600)}
@@ -92,19 +187,16 @@ export function ProductCard({
             />
           )}
 
-          {/* Skeleton */}
           {!imageLoaded && (
             <div className="absolute inset-0 animate-shimmer rounded-xl" />
           )}
 
-          {/* Overlays */}
           {isOutOfStock && (
             <div className="absolute inset-0 bg-background/60 flex items-center justify-center rounded-xl">
               <span className="badge-out-of-stock">Out of Stock</span>
             </div>
           )}
 
-          {/* Badge */}
           {badgeText && !isOutOfStock && (
             <div
               className={cn(
@@ -117,7 +209,7 @@ export function ProductCard({
           )}
 
           {/* Quick actions */}
-          <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0">
+          <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
             <button
               onClick={async (e) => {
                 e.preventDefault();
@@ -136,7 +228,6 @@ export function ProductCard({
                     ? "bg-black/40 border border-white/40 text-white hover:bg-white/10"
                     : "bg-background text-muted-foreground hover:text-foreground",
               )}
-              aria-label="Add to wishlist"
             >
               <Heart size={16} className={cn(isWishlisted && "fill-current")} />
             </button>
@@ -151,21 +242,29 @@ export function ProductCard({
                   ? "bg-black/40 border border-white/40 text-white hover:bg-white/10"
                   : "bg-background text-muted-foreground hover:text-foreground",
               )}
-              aria-label="Quick view"
             >
               <Eye size={16} />
             </button>
           </div>
 
-          {/* Add to cart — mobile friendly */}
+          {/* Quick Add button */}
           {!isOutOfStock && (
             <div className="absolute bottom-0 left-0 right-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
               <button
-                onClick={(e) => e.preventDefault()}
-                className="w-full bg-foreground text-background py-3 text-xs font-semibold tracking-widest uppercase hover:bg-foreground/90 active:scale-95 transition-all flex items-center justify-center gap-2"
+                onClick={handleQuickAdd}
+                className={cn(
+                  "w-full py-3 text-xs font-semibold tracking-widest uppercase transition-all flex items-center justify-center gap-2",
+                  added
+                    ? "bg-emerald-500 text-white"
+                    : "bg-foreground text-background hover:bg-foreground/90",
+                )}
               >
-                <ShoppingBag size={14} />
-                Quick Add
+                {adding ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <ShoppingBag size={14} />
+                )}
+                {added ? "Added!" : "Quick Add"}
               </button>
             </div>
           )}
@@ -182,7 +281,6 @@ export function ProductCard({
             {truncate(product.name, 60)}
           </h3>
 
-          {/* Rating */}
           {product.review_count > 0 && (
             <div className="flex items-center gap-1.5">
               <div className="flex items-center gap-0.5">
@@ -204,7 +302,6 @@ export function ProductCard({
             </div>
           )}
 
-          {/* Price */}
           <div className="flex items-center gap-2">
             <span className="text-base font-bold text-foreground">
               {formatPrice(effectivePrice)}
