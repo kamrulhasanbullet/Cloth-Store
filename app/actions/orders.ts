@@ -236,6 +236,21 @@ export async function createOrder(
     });
   }
 
+  if (cart.coupon_code) {
+    const { data: coupon } = await adminClient
+      .from("coupons")
+      .select("id, usage_count, usage_limit")
+      .eq("code", cart.coupon_code)
+      .maybeSingle();
+
+    if (coupon) {
+      await adminClient
+        .from("coupons")
+        .update({ usage_count: coupon.usage_count + 1 })
+        .eq("id", coupon.id);
+    }
+  }
+
   // Clear cart
   await adminClient.from("cart_items").delete().eq("cart_id", cart.id);
   await adminClient

@@ -207,6 +207,22 @@ export async function applyCoupon(
     return { data: null, error: "Coupon usage limit reached", success: false };
   }
 
+  if (coupon.per_user_limit) {
+    const { count } = await sb
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("coupon_code", code.toUpperCase());
+
+    if ((count ?? 0) >= coupon.per_user_limit) {
+      return {
+        data: null,
+        error: "You have already used this coupon",
+        success: false,
+      };
+    }
+  }
+
   const { data: cart } = await sb
     .from("carts")
     .select("id")
