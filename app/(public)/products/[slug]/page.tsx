@@ -7,6 +7,8 @@ import { ProductInfo } from "@/components/product/product-info";
 import { ProductCard } from "@/components/product/product-card";
 import { getProductBySlug, getRelatedProducts } from "@/lib/products";
 import { getWishlistProductIds } from "@/app/actions/wishlist";
+import { ProductReviews } from "@/components/product/product-reviews";
+import { getProductReviews, canUserReview } from "@/app/actions/reviews";
 
 interface ProductPageProps {
   params: { slug: string };
@@ -37,10 +39,13 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const product = await getProductBySlug(params.slug);
   if (!product) notFound();
 
-  const [related, wishlistProductIds] = await Promise.all([
-    getRelatedProducts(product.id, product.category_id),
-    getWishlistProductIds(),
-  ]);
+  const [related, wishlistProductIds, reviews, userCanReview] =
+    await Promise.all([
+      getRelatedProducts(product.id, product.category_id),
+      getWishlistProductIds(),
+      getProductReviews(product.id),
+      canUserReview(product.id),
+    ]);
 
   const sortedImages = [...(product.images ?? [])].sort((a, b) => {
     if (a.is_primary && !b.is_primary) return -1;
@@ -109,6 +114,16 @@ export default async function ProductPage({ params }: ProductPageProps) {
             </div>
           </section>
         )}
+
+        <div className="container-main pb-16">
+          <ProductReviews
+            productId={product.id}
+            initialReviews={reviews}
+            canReview={userCanReview}
+            avgRating={product.avg_rating}
+            reviewCount={product.review_count}
+          />
+        </div>
       </div>
     </div>
   );
