@@ -250,17 +250,111 @@ export async function getAdminCustomers(page = 1, perPage = 20) {
   const adminClient = getServiceSupabase();
 
   const from = (page - 1) * perPage;
-  const { data, count, error } = await adminClient
+  const {
+    data: profiles,
+    count,
+    error,
+  } = await adminClient
     .from("profiles")
-    .select("id, full_name, phone, avatar_url, created_at, updated_at", {
-      count: "exact",
-    })
+    .select(
+      "id, full_name, phone, avatar_url, is_active, created_at, updated_at",
+      {
+        count: "exact",
+      },
+    )
     .eq("role", "customer")
     .order("created_at", { ascending: false })
     .range(from, from + perPage - 1);
 
   if (error) return { customers: [], count: 0 };
-  return { customers: data ?? [], count: count ?? 0 };
+
+  const userIds = (profiles ?? []).map((p) => p.id);
+
+  // Fetch all orders for these users in one query
+  const { data: orders } = await adminClient
+    .from("orders")
+    .select("user_id, total, status")
+    .in("user_id", userIds);
+
+  const statsMap = new Map<
+    string,
+    { orderCount: number; totalSpent: number; lastOrderAt: string | null }
+  >();
+
+  for (const o of orders ?? []) {
+    const existing = statsMap.get(o.user_id) ?? {
+      orderCount: 0,
+      totalSpent: 0,
+      lastOrderAt: null,
+    };
+    existing.orderCount += 1;
+    if (o.status !== "cancelled" && o.status !== "refunded") {
+      existing.totalSpent += Number(o.total);
+    }
+    statsMap.set(o.user_id, existing);
+  }
+
+  const customers = (profiles ?? []).map((p) => ({
+    ...p,
+    orderCount: statsMap.get(p.id)?.orderCount ?? 0,
+    totalSpent: statsMap.get(p.id)?.totalSpent ?? 0,
+  }));
+
+  return { customers, count: count ?? 0 };
+}
+
+export async function getCustomerDetail(userId: string) {
+  const adminId = await requireAdmin();
+  if (!adminId) return null;
+
+  const adminClient = getServiceSupabase();
+
+  const [{ data: profile }, { data: orders }, { data: addresses }] =
+    await Promise.all([
+      adminClient.from("profiles").select("*").eq("id", userId).maybeSingle(),
+      adminClient
+        .from("orders")
+        .select("*, items:order_items(*)")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false }),
+      adminClient.from("addresses").select("*").eq("user_id", userId),
+    ]);
+
+  if (!profile) return null;
+
+  const validOrders = (orders ?? []).filter(
+    (o: any) => o.status !== "cancelled" && o.status !== "refunded",
+  );
+  const totalSpent = validOrders.reduce(
+    (s: number, o: any) => s + Number(o.total),
+    0,
+  );
+
+  return {
+    profile,
+    orders: orders ?? [],
+    addresses: addresses ?? [],
+    stats: {
+      orderCount: orders?.length ?? 0,
+      totalSpent,
+      avgOrderValue: validOrders.length ? totalSpent / validOrders.length : 0,
+    },
+  };
+}
+
+export async function toggleCustomerStatus(userId: string, isActive: boolean) {
+  const adminId = await requireAdmin();
+  if (!adminId) return { error: "Unauthorized", success: false };
+
+  const adminClient = getServiceSupabase();
+
+  const { error } = await adminClient
+    .from("profiles")
+    .update({ is_active: isActive })
+    .eq("id", userId);
+
+  if (error) return { error: error.message, success: false };
+  return { error: null, success: true };
 }
 
 export async function getAdminCoupons(page = 1, perPage = 20) {
