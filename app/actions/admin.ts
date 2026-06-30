@@ -18,32 +18,147 @@ async function requireAdmin(): Promise<string | null> {
   return profile?.role === "admin" ? userId : null;
 }
 
-export async function getAdminStats() {
+export async function getAdminStats(
+  period: "week" | "month" | "year" = "month",
+) {
   const adminId = await requireAdmin();
   if (!adminId) return null;
 
   const adminClient = getServiceSupabase();
 
-  const [ordersRes, productsRes, revenueRes, usersRes] = await Promise.all([
+  const now = new Date();
+  let currentStart: Date;
+  let previousStart: Date;
+  let previousEnd: Date;
+
+  if (period === "week") {
+    currentStart = new Date(now);
+    currentStart.setDate(now.getDate() - 7);
+    previousStart = new Date(now);
+    previousStart.setDate(now.getDate() - 14);
+    previousEnd = currentStart;
+  } else if (period === "year") {
+    currentStart = new Date(now);
+    currentStart.setFullYear(now.getFullYear() - 1);
+    previousStart = new Date(now);
+    previousStart.setFullYear(now.getFullYear() - 2);
+    previousEnd = currentStart;
+  } else {
+    currentStart = new Date(now);
+    currentStart.setMonth(now.getMonth() - 1);
+    previousStart = new Date(now);
+    previousStart.setMonth(now.getMonth() - 2);
+    previousEnd = currentStart;
+  }
+
+  const [
+    totalOrdersRes,
+    totalProductsRes,
+    totalUsersRes,
+    currentOrdersRes,
+    previousOrdersRes,
+    currentUsersRes,
+    previousUsersRes,
+  ] = await Promise.all([
     adminClient.from("orders").select("id", { count: "exact", head: true }),
     adminClient
       .from("products")
       .select("id", { count: "exact", head: true })
       .eq("status", "active"),
-    adminClient.from("orders").select("total"),
     adminClient.from("profiles").select("id", { count: "exact", head: true }),
+    adminClient
+      .from("orders")
+      .select("total, created_at")
+      .gte("created_at", currentStart.toISOString())
+      .neq("status", "cancelled")
+      .neq("status", "refunded"),
+    adminClient
+      .from("orders")
+      .select("total")
+      .gte("created_at", previousStart.toISOString())
+      .lt("created_at", previousEnd.toISOString())
+      .neq("status", "cancelled")
+      .neq("status", "refunded"),
+    adminClient
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "customer")
+      .gte("created_at", currentStart.toISOString()),
+    adminClient
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "customer")
+      .gte("created_at", previousStart.toISOString())
+      .lt("created_at", previousEnd.toISOString()),
   ]);
 
-  const totalRevenue = (revenueRes.data ?? []).reduce(
+  // Total revenue (all-time, for the top card)
+  const { data: allRevenue } = await adminClient
+    .from("orders")
+    .select("total")
+    .neq("status", "cancelled")
+    .neq("status", "refunded");
+  const totalRevenue = (allRevenue ?? []).reduce(
     (s: number, o: any) => s + Number(o.total),
     0,
   );
 
+  // Current vs previous period revenue
+  const currentRevenue = (currentOrdersRes.data ?? []).reduce(
+    (s: number, o: any) => s + Number(o.total),
+    0,
+  );
+  const previousRevenue = (previousOrdersRes.data ?? []).reduce(
+    (s: number, o: any) => s + Number(o.total),
+    0,
+  );
+
+  const currentOrderCount = currentOrdersRes.data?.length ?? 0;
+  const previousOrderCount = previousOrdersRes.data?.length ?? 0;
+
+  const currentCustomerCount = currentUsersRes.count ?? 0;
+  const previousCustomerCount = previousUsersRes.count ?? 0;
+
+  const calcChange = (current: number, previous: number) => {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return Number((((current - previous) / previous) * 100).toFixed(1));
+  };
+
+  // Revenue trend — daily buckets within current period
+  const trendBuckets = new Map<string, number>();
+  for (const o of currentOrdersRes.data ?? []) {
+    const dateKey = new Date(o.created_at).toISOString().slice(0, 10);
+    trendBuckets.set(
+      dateKey,
+      (trendBuckets.get(dateKey) ?? 0) + Number(o.total),
+    );
+  }
+  const revenueTrend = Array.from(trendBuckets.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, revenue]) => ({ date, revenue }));
+
+  // Order status distribution (all-time)
+  const { data: statusRows } = await adminClient
+    .from("orders")
+    .select("status");
+  const statusCounts = new Map<string, number>();
+  for (const row of statusRows ?? []) {
+    statusCounts.set(row.status, (statusCounts.get(row.status) ?? 0) + 1);
+  }
+  const statusDistribution = Array.from(statusCounts.entries()).map(
+    ([status, count]) => ({ status, count }),
+  );
+
   return {
-    totalOrders: ordersRes.count ?? 0,
-    totalProducts: productsRes.count ?? 0,
+    totalOrders: totalOrdersRes.count ?? 0,
+    totalProducts: totalProductsRes.count ?? 0,
     totalRevenue,
-    totalUsers: usersRes.count ?? 0,
+    totalUsers: totalUsersRes.count ?? 0,
+    revenueChange: calcChange(currentRevenue, previousRevenue),
+    ordersChange: calcChange(currentOrderCount, previousOrderCount),
+    customersChange: calcChange(currentCustomerCount, previousCustomerCount),
+    revenueTrend,
+    statusDistribution,
   };
 }
 
