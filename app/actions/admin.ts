@@ -4,7 +4,7 @@ import { getServiceSupabase } from "@/lib/supabase";
 import { getServerSupabase, getServerUserId } from "@/lib/supabase-server";
 import type { Order, Product } from "@/lib/types";
 
-async function requireAdmin(): Promise<string | null> {
+export async function requireAdmin(): Promise<string | null> {
   const userId = await getServerUserId();
   if (!userId) return null;
 
