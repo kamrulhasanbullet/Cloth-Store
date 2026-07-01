@@ -582,7 +582,7 @@ export async function updateReview(
   return { error: null, success: true };
 }
 
-export async function getAdminBanners(page = 1, perPage = 20) {
+export async function getAdminBanners(page = 1, perPage = 100) {
   const adminId = await requireAdmin();
   if (!adminId) return { banners: [], count: 0 };
 
@@ -592,7 +592,8 @@ export async function getAdminBanners(page = 1, perPage = 20) {
   const { data, count, error } = await adminClient
     .from("banners")
     .select("*", { count: "exact" })
-    .order("created_at", { ascending: false })
+    .order("placement", { ascending: true })
+    .order("sort_order", { ascending: true })
     .range(from, from + perPage - 1);
 
   if (error) return { banners: [], count: 0 };
